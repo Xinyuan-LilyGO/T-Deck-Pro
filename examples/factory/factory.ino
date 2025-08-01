@@ -18,6 +18,9 @@
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include "factory.h"
 #include "peripheral.h"
+#include <Preferences.h>
+
+Preferences preferences;
 
 TinyGsm modem(SerialAT);
 TaskHandle_t a7682_handle;
@@ -340,16 +343,41 @@ static void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
 
 void setup()
 {
-    // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
-    // before powering on, all CS signals should be pulled high and in an unselected state;
-    pinMode(BOARD_EPD_CS, OUTPUT); 
-    digitalWrite(BOARD_EPD_CS, HIGH);
-    pinMode(BOARD_SD_CS, OUTPUT); 
-    digitalWrite(BOARD_SD_CS, HIGH);
-    pinMode(BOARD_LORA_CS, OUTPUT); 
-    digitalWrite(BOARD_LORA_CS, HIGH);
+    gpio_hold_dis((gpio_num_t)BOARD_6609_EN);
+    gpio_hold_dis((gpio_num_t)BOARD_LORA_EN);
+    gpio_hold_dis((gpio_num_t)BOARD_GPS_EN);
+    gpio_hold_dis((gpio_num_t)BOARD_1V8_EN);
+    gpio_hold_dis((gpio_num_t)BOARD_A7682E_PWRKEY);
+
+    gpio_deep_sleep_hold_dis();
 
     Serial.begin(115200);
+
+    // delay(3000);
+
+    // // frist startup
+    // preferences.begin("my-app", false);
+    // bool start = preferences.getBool("counter", false);
+    // Serial.printf("start = %d\n", start);
+    // if(start == false)
+    // {
+    //     Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
+    //     bool ret = bq25896_init();
+    //     if(ret == true)
+    //     {
+    //         preferences.putBool("counter", true);
+    //         Serial.printf("bq25896 init success\n");
+    //     }else{
+    //         Serial.printf("bq25896 init failure\n");
+    //     }
+
+    //     while (PPM.isVbusIn())
+    //     {
+    //         delay(1000);
+    //         Serial.println("Unplug the USB");
+    //     }
+    //     PPM.shutdown();
+    // }
 
     // IO
     pinMode(BOARD_KEYBOARD_LED, OUTPUT);
@@ -366,6 +394,18 @@ void setup()
     digitalWrite(BOARD_GPS_EN, HIGH);
     digitalWrite(BOARD_1V8_EN, HIGH);
     digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
+
+    // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
+    // before powering on, all CS signals should be pulled high and in an unselected state;
+    pinMode(BOARD_LORA_CS, OUTPUT); 
+    digitalWrite(BOARD_LORA_CS, HIGH);
+    pinMode(BOARD_LORA_RST, OUTPUT); 
+    digitalWrite(BOARD_LORA_RST, HIGH);
+    pinMode(BOARD_SD_CS, OUTPUT); 
+    digitalWrite(BOARD_SD_CS, HIGH);
+    pinMode(BOARD_EPD_CS, OUTPUT); 
+    digitalWrite(BOARD_EPD_CS, HIGH);
+
 
     // i2c devices
     byte error, address;
@@ -433,6 +473,9 @@ void setup()
     disp_full_refr();
 }
 
+
+uint32_t tick = 0;
+
 void loop()
 {
     lv_task_handler();
@@ -444,6 +487,17 @@ void loop()
     }
     
     delay(1);
+
+
+    if(millis() - tick > 3000) {
+        tick = millis();
+        // printf("BOARD_LORA_CS=%d\n", digitalRead(BOARD_LORA_CS));
+        // printf("BOARD_LORA_RST=%d\n", digitalRead(BOARD_LORA_RST));
+        // printf("BOARD_LORA_BUSY=%d\n", digitalRead(BOARD_LORA_BUSY));
+        // printf("BOARD_LORA_EN=%d\n", digitalRead(BOARD_LORA_EN));
+
+        // printf("BOARD_EPD_CS=%d\n", digitalRead(BOARD_EPD_CS));
+    }
 }
 
 /*********************************************************************************

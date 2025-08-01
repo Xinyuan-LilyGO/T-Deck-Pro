@@ -202,3 +202,8 @@ void lora_set_recv_flag(void)
 {
     lora_recv_success = false;
 }
+
+void lora_sleep(void)
+{
+    radio.sleep();
+}

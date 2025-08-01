@@ -36,6 +36,7 @@ void lora_receive_loop(void);
 void lora_transmit(const char *str);
 bool lora_get_recv(const char **str, int *rssi);
 void lora_set_recv_flag(void);
+void lora_sleep(void);
 
 // keypad
 #define KEYPAD_PRESS   1

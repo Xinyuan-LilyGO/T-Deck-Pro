@@ -47,6 +47,7 @@ bool gps_init(void)
 
 void gps_task(void *param)
 {
+    vTaskSuspend(gps_handle);
     while(1)
     {
         while (Serial.available()) {
@@ -72,7 +73,7 @@ void gps_task(void *param)
 void gps_task_create(void)
 {
     xTaskCreate(gps_task, "gps_task", 1024 * 3, NULL, GPS_PRIORITY, &gps_handle);
-    vTaskSuspend(gps_handle);
+    // vTaskSuspend(gps_handle);
 }
 
 void gps_task_suspend(void)

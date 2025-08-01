@@ -118,6 +118,7 @@ static struct menu_btn menu_btn_list[] =
     {SCREEN8_ID,  &img_A7682E,  "A7682E",   95,     189},
     {SCREEN9_ID,  &img_lora,    "Shutdown", 167,    189},
     {SCREEN10_ID, &img_PCM5102, "PCM5102",  23,     13},  // Page two
+    {SCREEN11_ID, &img_PCM5102, "Sleep",    95,     13},  // 
 };
 
 static void menu_btn_event_cb(lv_event_t *e)
@@ -2256,7 +2257,6 @@ static scr_lifecycle_t screen8_2 = {
     .destroy = destroy8_2,
 };
 #endif
-
 //************************************[ screen 9 ]****************************************** Shutdown
 #if 1
 static lv_timer_t *shutdown_timer = NULL;
@@ -2506,6 +2506,91 @@ static scr_lifecycle_t screen10 = {
     .destroy = destroy10,
 };
 #endif
+//************************************[ screen 11 ]****************************************** Sleep
+#if 1
+#include <TouchDrvCSTXXX.hpp>
+static void scr11_btn_event_cb(lv_event_t * e)
+{
+    if(e->code == LV_EVENT_CLICKED){
+        scr_mgr_pop(false);
+    }
+}
+
+static void create11(lv_obj_t *parent)
+{
+    extern TouchDrvCSTXXX touch;
+
+    touch.sleep();
+
+    lora_sleep();
+
+    SerialGPS.end();
+    
+    // pinMode(BOARD_GPS_PPS, OUTPUT);
+    // pinMode(BOARD_GPS_RXD, OUTPUT);
+    // pinMode(BOARD_GPS_TXD, OUTPUT);
+    // pinMode(BOARD_LORA_RST, OUTPUT);
+    // pinMode(BOARD_TOUCH_RST, OUTPUT);
+    // pinMode(BOARD_LORA_BUSY, OUTPUT);
+
+    // digitalWrite(BOARD_GPS_PPS, LOW);
+    // digitalWrite(BOARD_GPS_RXD, LOW);
+    // digitalWrite(BOARD_GPS_TXD, LOW);
+    // digitalWrite(BOARD_LORA_RST, LOW);
+    // digitalWrite(BOARD_TOUCH_RST, LOW);
+    // digitalWrite(BOARD_LORA_BUSY, LOW);
+
+    gpio_reset_pin((gpio_num_t)BOARD_GPS_PPS);
+    gpio_reset_pin((gpio_num_t)BOARD_GPS_RXD);
+    gpio_reset_pin((gpio_num_t)BOARD_GPS_TXD);
+    gpio_reset_pin((gpio_num_t)BOARD_LORA_RST);
+    gpio_reset_pin((gpio_num_t)BOARD_TOUCH_RST);
+    gpio_reset_pin((gpio_num_t)BOARD_LORA_BUSY);
+
+    digitalWrite(BOARD_6609_EN, LOW);
+    digitalWrite(BOARD_LORA_EN, LOW);
+    digitalWrite(BOARD_GPS_EN, LOW);
+    
+    digitalWrite(BOARD_1V8_EN, LOW);
+    digitalWrite(BOARD_A7682E_PWRKEY, LOW);
+
+    // gpio_hold_en((gpio_num_t)BOARD_GPS_PPS);
+    // gpio_hold_en((gpio_num_t)BOARD_TOUCH_RST);
+    // gpio_hold_en((gpio_num_t)BOARD_GPS_RXD);
+    // gpio_hold_en((gpio_num_t)BOARD_GPS_TXD);
+    // gpio_hold_en((gpio_num_t)BOARD_LORA_RST);
+    // gpio_hold_en((gpio_num_t)BOARD_LORA_BUSY);
+    gpio_hold_en((gpio_num_t)BOARD_6609_EN);
+    gpio_hold_en((gpio_num_t)BOARD_LORA_EN);
+    gpio_hold_en((gpio_num_t)BOARD_GPS_EN);
+    gpio_hold_en((gpio_num_t)BOARD_1V8_EN);
+    gpio_hold_en((gpio_num_t)BOARD_A7682E_PWRKEY);
+    gpio_deep_sleep_hold_en();
+
+    
+    // esp_sleep_enable_ext0_wakeup((gpio_num_t)ENCODER_KEY, 0);                            
+    esp_sleep_enable_ext1_wakeup((1UL << BOARD_BOOT_PIN), ESP_EXT1_WAKEUP_ANY_LOW);   // Hibernate using user keys
+    esp_deep_sleep_start();
+
+    // back 
+    scr_back_btn_create(parent, "Sleep", scr8_btn_event_cb);
+}
+static void entry11(void) 
+{
+    ui_disp_full_refr();
+}
+static void exit11(void) {
+    ui_disp_full_refr();
+}
+static void destroy11(void) { }
+
+static scr_lifecycle_t screen11 = {
+    .create = create11,
+    .entry = entry11,
+    .exit  = exit11,
+    .destroy = destroy11,
+};
+#endif
 //************************************[ UI ENTRY ]******************************************
 static lv_obj_t *menu_keypad;
 static lv_timer_t *menu_timer = NULL;
@@ -2652,8 +2737,10 @@ void ui_deckpro_entry(void)
     scr_mgr_register(SCREEN8_ID,    &screen8);      // A7682E
     scr_mgr_register(SCREEN8_1_ID,  &screen8_1);    //  - Call test
     scr_mgr_register(SCREEN8_2_ID,  &screen8_2);    //  - AT test
-    scr_mgr_register(SCREEN9_ID,    &screen9);      // 
-    scr_mgr_register(SCREEN10_ID,   &screen10);     // 
+    scr_mgr_register(SCREEN9_ID,    &screen9);      // Shutdown
+    scr_mgr_register(SCREEN10_ID,   &screen10);     // PCM5102
+    scr_mgr_register(SCREEN11_ID,   &screen11);
+    
 
     scr_mgr_switch(SCREEN0_ID, false); // set root screen
     scr_mgr_set_anim(LV_SCR_LOAD_ANIM_OVER_LEFT, LV_SCR_LOAD_ANIM_OVER_LEFT, LV_SCR_LOAD_ANIM_OVER_LEFT);
