@@ -345,7 +345,11 @@ int ui_input_get_touch_coord(int *x, int *y)
 
 int ui_input_get_keypay_val(char *v)
 {
-    return keypad_get_val(v);
+    int update = keypad_get_val(v);
+    if (keypad_get_state() != KEYPAD_PRESS) {
+        update = false;
+    }
+    return update;
 }
 
 void ui_input_set_keypay_flag(void)

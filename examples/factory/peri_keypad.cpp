@@ -23,6 +23,10 @@ char keypad_curr_val = ' ';
 int keypad_state = KEYPAD_RELEASE;
 bool keypad_update = false;
 
+// TEST STRING
+char input_textbox[INPUT_TEXTBOX_LEN] = "";
+static int input_textbox_index = 0;
+
 bool keypad_init(int address)
 {
     if(!i2cIsInit(0)){
@@ -55,6 +59,11 @@ int keypad_get_val(char *c)
     return keypad_update;
 } 
 
+int keypad_get_state()
+{
+    return keypad_state;
+}
+
 void keypad_set_flag(void)
 {
     keypad_update = false;
@@ -82,13 +91,32 @@ void keypad_loop(void)
         row = k / KEYPAD_COLS;
         col = (KEYPAD_COLS-1) - k % KEYPAD_COLS;
         c = keymap[row][col];
-        Serial.printf("k=%d, v=%d, press:%d, %d, %c\n", k, v, row, col, c);
+        Serial.printf("k=%d, v=%d, press:%d, %d, %c, %d\n",
+                      k, v, row, col, c, state);
         // if(keypad_listener)
         //     keypad_listener(state, c);
         
         keypad_curr_val = c;
         keypad_state = state;
         keypad_update = true;
+
+        // TEST STRING
+        if (state == KEYPAD_PRESS) {
+            if (input_textbox_index + 2 >= INPUT_TEXTBOX_LEN) {
+                input_textbox_index = 0;
+            }
+            if (c == '0') {
+                --input_textbox_index;
+            } else if (c == 'S') {
+                input_textbox[input_textbox_index++] = ' ';
+            } else if (c == 'E') {
+                input_textbox[input_textbox_index++] = '\n';
+            } else {
+                input_textbox[input_textbox_index++] = c;
+            }
+            input_textbox[input_textbox_index] = '|';
+            input_textbox[input_textbox_index + 1] = '\0';
+        }
     }
 }
 
