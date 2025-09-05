@@ -3,7 +3,7 @@
 #include <RadioLib.h>
 #include "utilities.h"
 #include "peripheral.h"
-
+#include "ui_deckpro_port.h"
 
 static SX1262 radio = new Module(BOARD_LORA_CS, BOARD_LORA_INT, BOARD_LORA_RST, BOARD_LORA_BUSY);
 static int lora_mode = LORA_MODE_SEND;
@@ -30,7 +30,7 @@ static void set_receive_flag(void){
 bool lora_init(void)
 {
     Serial.print(F("[SX1262] Initializing ... "));
-    int state = radio.begin(LORA_FREQ);
+    int state = radio.begin(ui_lora_get_freq());
     if (state == RADIOLIB_ERR_NONE) {
         Serial.println(F("success!"));
     } else {
@@ -42,13 +42,13 @@ bool lora_init(void)
     radio.setPacketSentAction(set_transmit_flag);
 
     // set carrier frequency to 433.5 MHz
-    if (radio.setFrequency(LORA_FREQ) == RADIOLIB_ERR_INVALID_FREQUENCY) {
+    if (radio.setFrequency(ui_lora_get_freq()) == RADIOLIB_ERR_INVALID_FREQUENCY) {
         Serial.println(F("Selected frequency is invalid for this module!"));
         while (true);
     }
 
     // set bandwidth to 250 kHz
-    if (radio.setBandwidth(125.0) == RADIOLIB_ERR_INVALID_BANDWIDTH) {
+    if (radio.setBandwidth(ui_lora_get_bandwidth()) == RADIOLIB_ERR_INVALID_BANDWIDTH) {
         Serial.println(F("Selected bandwidth is invalid for this module!"));
         while (true);
     }
@@ -72,7 +72,7 @@ bool lora_init(void)
     }
 
     // set output power to 10 dBm (accepted range is -17 - 22 dBm)
-    if (radio.setOutputPower(22) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+    if (radio.setOutputPower(ui_lora_get_power()) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
         Serial.println(F("Selected output power is invalid for this module!"));
         while (true);
     }
@@ -206,4 +206,25 @@ void lora_set_recv_flag(void)
 void lora_sleep(void)
 {
     radio.sleep();
+}
+
+void lora_param_set(void)
+{
+    // set carrier frequency to 433.5 MHz
+    if (radio.setFrequency(ui_lora_get_freq()) == RADIOLIB_ERR_INVALID_FREQUENCY) {
+        Serial.println(F("Selected frequency is invalid for this module!"));
+        while (true);
+    }
+
+    // set bandwidth to 250 kHz
+    if (radio.setBandwidth(ui_lora_get_bandwidth()) == RADIOLIB_ERR_INVALID_BANDWIDTH) {
+        Serial.println(F("Selected bandwidth is invalid for this module!"));
+        while (true);
+    }
+
+    // set output power to 10 dBm (accepted range is -17 - 22 dBm)
+    if (radio.setOutputPower(ui_lora_get_power()) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+        Serial.println(F("Selected output power is invalid for this module!"));
+        while (true);
+    }
 }

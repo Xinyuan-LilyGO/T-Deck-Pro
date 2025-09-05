@@ -25,7 +25,7 @@ enum {
 };
 
 // lora sx1262
-#define LORA_FREQ      850.0
+// #define LORA_FREQ      850.0
 #define LORA_MODE_SEND 0
 #define LORA_MODE_RECV 1
 
@@ -37,7 +37,7 @@ void lora_transmit(const char *str);
 bool lora_get_recv(const char **str, int *rssi);
 void lora_set_recv_flag(void);
 void lora_sleep(void);
-
+void lora_param_set(void);
 // keypad
 #define KEYPAD_PRESS   1
 #define KEYPAD_RELEASE 0
