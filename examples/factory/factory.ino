@@ -471,6 +471,14 @@ void setup()
     ui_deckpro_entry();
 
     disp_full_refr();
+
+    digitalWrite(BOARD_KEYBOARD_LED, LOW);
+    digitalWrite(BOARD_MOTOR_PIN, LOW);
+    digitalWrite(BOARD_6609_EN, HIGH);
+    digitalWrite(BOARD_LORA_EN, HIGH);
+    digitalWrite(BOARD_GPS_EN, HIGH);
+    digitalWrite(BOARD_1V8_EN, HIGH);
+    digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
 }
 
 
