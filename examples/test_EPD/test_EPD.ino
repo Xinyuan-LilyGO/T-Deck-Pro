@@ -19,15 +19,9 @@
 
 #include <GxEPD2_BW.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
+#include "utilities.h"
 
-#define BOARD_SPI_CS    34
-#define BOARD_SPI_DC    35
-#define BOARD_SPI_RST  -1
-#define BOARD_SPI_BUSY 37
-#define BOARD_SPI_SCK  36
-#define BOARD_SPI_MOSI 33
-
-GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_SPI_CS, BOARD_SPI_DC, BOARD_SPI_RST, BOARD_SPI_BUSY)); // GDEQ031T10 240x320, UC8253, (no inking, backside mark KEGMO 3100)
+GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_EPD_CS, BOARD_EPD_DC, BOARD_EPD_RST, BOARD_EPD_BUSY)); // GDEQ031T10 240x320, UC8253, (no inking, backside mark KEGMO 3100)
 
 void setup()
 {
@@ -36,7 +30,21 @@ void setup()
   Serial.println("setup");
   delay(100);
 
-  SPI.begin(BOARD_SPI_SCK, -1, BOARD_SPI_MOSI, BOARD_SPI_CS);
+  // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
+  // before powering on, all CS signals should be pulled high and in an unselected state;
+  pinMode(BOARD_LORA_CS, OUTPUT); 
+  digitalWrite(BOARD_LORA_CS, HIGH);
+  pinMode(BOARD_LORA_RST, OUTPUT); 
+  digitalWrite(BOARD_LORA_RST, HIGH);
+  pinMode(BOARD_SD_CS, OUTPUT); 
+  digitalWrite(BOARD_SD_CS, HIGH);
+  pinMode(BOARD_EPD_CS, OUTPUT); 
+  digitalWrite(BOARD_EPD_CS, HIGH);
+
+  pinMode(BOARD_EPD_BL, OUTPUT); 
+  digitalWrite(BOARD_EPD_BL, HIGH);
+
+  SPI.begin(BOARD_EPD_SCK, -1, BOARD_EPD_MOSI, BOARD_EPD_CS);
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   //display.init(115200, true, 10, false, SPIn, SPISettings(4000000, MSBFIRST, SPI_MODE0)); // extended init method with SPI channel and/or settings selection

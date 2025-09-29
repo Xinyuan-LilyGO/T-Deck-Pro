@@ -25,7 +25,6 @@ jobs:
           - examples/test_keypad
           - examples/test_lora_recv
           - examples/test_lora_send
-          - examples/test_LTR_553ALS
           - examples/test_lvgl
           - examples/test_pcm5102a
           - examples/test_sd

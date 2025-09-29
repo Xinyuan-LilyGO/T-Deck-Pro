@@ -190,6 +190,9 @@ void setup()
 
     helloWorld();
     delay(1000);
+
+    // pinMode(BOARD_EPD_BL, OUTPUT); 
+    // digitalWrite(BOARD_EPD_BL, HIGH);
     
     touch.setPins(BOARD_TOUCH_RST, BOARD_TOUCH_INT);
     bool hasTouch = touch.begin(Wire, BOARD_I2C_ADDR_TOUCH, BOARD_TOUCH_SDA, BOARD_TOUCH_SCL);
