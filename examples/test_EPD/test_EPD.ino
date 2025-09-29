@@ -27,6 +27,11 @@
 #define BOARD_SPI_SCK  36
 #define BOARD_SPI_MOSI 33
 
+#define BOARD_LORA_CS   3
+#define BOARD_LORA_RST  4
+#define BOARD_SD_CS   48
+#define BOARD_EPD_CS   34
+
 GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_SPI_CS, BOARD_SPI_DC, BOARD_SPI_RST, BOARD_SPI_BUSY)); // GDEQ031T10 240x320, UC8253, (no inking, backside mark KEGMO 3100)
 
 void setup()
@@ -35,6 +40,18 @@ void setup()
   Serial.println();
   Serial.println("setup");
   delay(100);
+
+  // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
+    // before powering on, all CS signals should be pulled high and in an unselected state;
+    pinMode(BOARD_LORA_CS, OUTPUT); 
+    digitalWrite(BOARD_LORA_CS, HIGH);
+    pinMode(BOARD_LORA_RST, OUTPUT); 
+    digitalWrite(BOARD_LORA_RST, HIGH);
+    pinMode(BOARD_SD_CS, OUTPUT); 
+    digitalWrite(BOARD_SD_CS, HIGH);
+    pinMode(BOARD_EPD_CS, OUTPUT); 
+    digitalWrite(BOARD_EPD_CS, HIGH);
+
 
   SPI.begin(BOARD_SPI_SCK, -1, BOARD_SPI_MOSI, BOARD_SPI_CS);
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02

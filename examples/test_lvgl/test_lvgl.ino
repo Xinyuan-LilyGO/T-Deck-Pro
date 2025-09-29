@@ -188,6 +188,17 @@ void setup()
     SPI.begin(BOARD_EPD_SCK, -1, BOARD_EPD_MOSI, BOARD_EPD_CS);
     display.init(115200, true, 2, false);
 
+    // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
+    // before powering on, all CS signals should be pulled high and in an unselected state;
+    pinMode(BOARD_LORA_CS, OUTPUT); 
+    digitalWrite(BOARD_LORA_CS, HIGH);
+    pinMode(BOARD_LORA_RST, OUTPUT); 
+    digitalWrite(BOARD_LORA_RST, HIGH);
+    pinMode(BOARD_SD_CS, OUTPUT); 
+    digitalWrite(BOARD_SD_CS, HIGH);
+    pinMode(BOARD_EPD_CS, OUTPUT); 
+    digitalWrite(BOARD_EPD_CS, HIGH);
+
     helloWorld();
     delay(1000);
     
