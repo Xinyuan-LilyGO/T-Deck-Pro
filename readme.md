@@ -13,10 +13,10 @@
 ## :zero: Version 🎁
 
 **T-DeckPro V1.1** Revision Update Notes: 
-1. Remove the circuitry related to the light sensor and the power interruption. (Free up pin IO16 for LCD RST) 
-2. 1.8V_EN is deleted and changed to constant power supply. (I038 is vacated for T-RST) 
-3. Added screen backlight, IO45 - Screen backlight PWM 
-4. Replace the motor with a surface mount motor with fixed feet and change the drive circuit to DRV2605 drive. 
+1. Remove the circuitry related to the light sensor and the power interruption. (Free up pin `IO16` for LCD RST) 
+2. 1.8V_EN is deleted and changed to constant power supply. (`I038` is vacated for T-RST) 
+3. Added screen backlight, `IO45` - Screen backlight PWM 
+4. Replace the motor with a surface mount motor with fixed feet and change the drive circuit to `DRV2605` drive. 
 5. The screen boost circuit is modified to be the same as the one in the screen specification sheet, including the component packaging. 
 6. Change the power supply of the FLASH PSRAM to 3.3V.
 
@@ -48,6 +48,7 @@ As shown in the figure below, the annotated modules of the two versions are diff
 |      Touch       |         CST328 (0x1A)          |
 |    Gyroscope     |        BHI260AP (0x28)         |
 |     Keyboard     |         TCA8418 (0x34)         |
+|     Motor        |          DRV2605 (0x5A)        |
 
 A7682E https://en.simcom.com/product/A7682E.html
 
@@ -159,6 +160,7 @@ SSL
 #define BOARD_I2C_ADDR_GYROSCOPDE 0x28 // Gyroscope    --- BHI260AP
 #define BOARD_I2C_ADDR_KEYBOARD   0x34 // Keyboard     --- TCA8418
 #define BOARD_I2C_ADDR_BQ27220    0x55 //
+#define BOARD_I2C_ADDR_DRV2605    0x5A // Motor drive
 #define BOARD_I2C_ADDR_BQ25896    0x6B //
 
 // IIC

@@ -35,7 +35,10 @@ GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_3
 uint8_t *decodebuffer = NULL;
 lv_timer_t *flush_timer = NULL;
 int disp_refr_mode = DISP_REFR_MODE_PART;
-const char HelloWorld[] = "T-Deck-Pro V1.1";
+
+uint8_t isT_Deck_Pro_v1_1 = 0;
+const char Version_str1[] = "T-Deck-Pro V1.0";
+const char Version_str2[] = "T-Deck-Pro V1.1";
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
 
@@ -52,7 +55,12 @@ static bool ink_screen_init()
     if (display.epd2.WIDTH < 104) display.setFont(0);
     display.setTextColor(GxEPD_BLACK);
     int16_t tbx, tby; uint16_t tbw, tbh;
-    display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+    if(isT_Deck_Pro_v1_1) {
+        display.getTextBounds(Version_str2, 0, 0, &tbx, &tby, &tbw, &tbh);
+    }
+    else {
+        display.getTextBounds(Version_str1, 0, 0, &tbx, &tby, &tbw, &tbh);
+    }
     // center bounding box by transposition of origin:
     uint16_t x = ((display.width() - tbw) / 2) - tbx;
     uint16_t y = ((display.height() - tbh) / 2) - tby;
@@ -62,7 +70,12 @@ static bool ink_screen_init()
     {
         display.fillScreen(GxEPD_WHITE);
         display.setCursor(x, y);
-        display.println(HelloWorld);
+        if(isT_Deck_Pro_v1_1) {
+            display.print(Version_str2);
+        }
+        else {
+            display.print(Version_str1);
+        }
 
         display.setCursor(x+20, y+20);
         display.print(UI_T_DECK_PRO_VERSION);
@@ -404,7 +417,6 @@ void setup()
     pinMode(BOARD_EPD_CS, OUTPUT); 
     digitalWrite(BOARD_EPD_CS, HIGH);
 
-
     // i2c devices
     byte error, address;
     int nDevices = 0;
@@ -426,9 +438,25 @@ void setup()
                 Serial.printf("[0x%x] BQ27220 find!\n", address);
             } else if (address == BOARD_I2C_ADDR_BQ25896) {
                 Serial.printf("[0x%x] BQ25896 find!\n", address);
+            } else if (address == BOARD_I2C_ADDR_DRV2605) {
+                Serial.printf("[0x%x] DRV2605 find!\n", address);
             }
         }
     }
+
+    for(int i = 0; i < 3; i++) {
+        Wire.beginTransmission(BOARD_I2C_ADDR_DRV2605);
+        error = Wire.endTransmission();
+        if(error == 0) {
+            isT_Deck_Pro_v1_1 = 1;
+        } else {
+            isT_Deck_Pro_v1_1 = 0;
+        }
+    }
+    Serial.printf("isT_Deck_Pro_v1_1 = %d\n", isT_Deck_Pro_v1_1);
+    
+
+
 
     Serial.printf(" ------------- SPIFFS ------------- \n");
 

@@ -20,6 +20,7 @@
 #define BOARD_I2C_ADDR_GYROSCOPDE 0x28 // Gyroscope    --- BHI260AP
 #define BOARD_I2C_ADDR_KEYBOARD   0x34 // Keyboard     --- TCA8418
 #define BOARD_I2C_ADDR_BQ27220    0x55 //
+#define BOARD_I2C_ADDR_DRV2605    0x5A // Motor
 #define BOARD_I2C_ADDR_BQ25896    0x6B //
 
 // IIC
