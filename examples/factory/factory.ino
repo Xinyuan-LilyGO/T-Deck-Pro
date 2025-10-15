@@ -453,10 +453,16 @@ void setup()
             isT_Deck_Pro_v1_1 = 0;
         }
     }
-    Serial.printf("isT_Deck_Pro_v1_1 = %d\n", isT_Deck_Pro_v1_1);
-    
 
-
+#ifdef T_DECK_PRO_V1_1
+    if(!isT_Deck_Pro_v1_1){
+        Serial.printf(" ------------- ERROR ------------- \n");
+        Serial.printf("Firmware mismatch\n");
+        Serial.printf("Your hardware might be the T-Deck-Pro V1.0, but please download the H693_factory_v2.x.bin firmware.\n");
+        Serial.printf("T-Deck-Pro V1.0   ---   H693_factory_v1.x.bin \n");
+        Serial.printf("T-Deck-Pro V1.1   ---   H693_factory_v2.x.bin\n");
+    }
+#endif
 
     Serial.printf(" ------------- SPIFFS ------------- \n");
 

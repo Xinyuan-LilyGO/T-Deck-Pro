@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#define T_DECK_PRO_V1_1 1
+
 #define UI_T_DECK_PRO_VERSION    "v2.0-250916"  // Software version
 #define BOARD_T_DECK_PRO_VERSION "v2.0-250915"  // Hardware version
 
