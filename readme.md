@@ -1,4 +1,4 @@
-<h1 align = "center">🏆T-Deck-Pro🏆</h1>
+<h1 align = "center">🏆T-Deck-Pro V1.0🏆</h1>
 
 <p> 
 <!-- <img src="https://img.shields.io/badge/ESP—IDF-5.1.1-ff3034" height="20px"></a> -->
@@ -11,6 +11,19 @@
 ![alt text](./docs/README_img/image.png)
 
 ## :zero: Version 🎁
+
+T-Deck-Pro Hardware Version 
+
+Different hardware versions may have incompatible codes. Confirm your hardware version and enter the corresponding `git branch`.
+
+The differences in hardware can be viewed in the corresponding `readme` and `schematic` diagrams.
+
+|        name         |                                                    git branch                                                    |                                                   change                                                    | schematic |     state     |
+| :-----------------: | :--------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------: | --------- | :-----------: |
+|   T-Deck-Pro V1.0   |   [HD-V1-250326](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V1-250326?tab=readme-ov-file#t-deck-pro)   | [readme](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V1-25-03-26?tab=readme-ov-file#zero-version-) |           |   Available   |
+|   T-Deck-Pro V1.1   | [HD-V2-250915](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V2-250915?tab=readme-ov-file#t-deck-pro-v11) | [readme](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V2-25-09-15?tab=readme-ov-file#zero-version-) |           |   Available   |
+| T-Deck-Pro MAX V1.0 |                                                        -                                                         |                                                      -                                                      |           | Not Available |
+
 
 ### 1、Version
 
