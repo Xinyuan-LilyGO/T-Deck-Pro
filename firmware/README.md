@@ -9,6 +9,12 @@
 
 Fix firmware：To download the firmware using `flash_download_tools`, you need to first ERASE by clicking `ERASE`. After the download is complete, you need to plug and unplug the usb once.
 
+Notice:
+
+After the first download of Factory firmware or after the flash is checked, the spiffs.bin file system needs to be downloaded.
+
+![alt text](image.png)
+
 ## :two: Download Instructions
 
 More documentation about flash_download_tools: [link](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html);

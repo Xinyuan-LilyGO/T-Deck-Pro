@@ -35,7 +35,10 @@ GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_3
 uint8_t *decodebuffer = NULL;
 lv_timer_t *flush_timer = NULL;
 int disp_refr_mode = DISP_REFR_MODE_PART;
-const char HelloWorld[] = "T-Deck-Pro!";
+
+bool isT_Deck_Pro_v1_0 = false;
+const char Version_str1[] = "T-Deck-Pro V1.0";
+const char Version_str2[] = "T-Deck-Pro V1.1";
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
 
@@ -52,7 +55,12 @@ static bool ink_screen_init()
     if (display.epd2.WIDTH < 104) display.setFont(0);
     display.setTextColor(GxEPD_BLACK);
     int16_t tbx, tby; uint16_t tbw, tbh;
-    display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+    if(isT_Deck_Pro_v1_0) {
+        display.getTextBounds(Version_str1, 0, 0, &tbx, &tby, &tbw, &tbh);
+    }
+    else {
+        display.getTextBounds(Version_str2, 0, 0, &tbx, &tby, &tbw, &tbh);
+    }
     // center bounding box by transposition of origin:
     uint16_t x = ((display.width() - tbw) / 2) - tbx;
     uint16_t y = ((display.height() - tbh) / 2) - tby;
@@ -62,7 +70,15 @@ static bool ink_screen_init()
     {
         display.fillScreen(GxEPD_WHITE);
         display.setCursor(x, y);
-        display.print(HelloWorld);
+        if(isT_Deck_Pro_v1_0) {
+            display.print(Version_str1);
+        }
+        else {
+            display.print(Version_str2);
+        }
+
+        display.setCursor(x+20, y+20);
+        display.print(UI_T_DECK_PRO_VERSION);
     }
     while (display.nextPage());
     display.hibernate();
@@ -433,6 +449,26 @@ void setup()
             }
         }
     }
+
+    for(int i = 0; i < 3; i++) {
+        Wire.beginTransmission(0x5A);
+        error = Wire.endTransmission();
+        if(error == 0) {
+            isT_Deck_Pro_v1_0 = 0;
+        } else {
+            isT_Deck_Pro_v1_0 = 1;
+        }
+    }
+
+#ifdef T_DECK_PRO_V1_0
+    if(!isT_Deck_Pro_v1_0){
+        Serial.printf(" ------------- ERROR ------------- \n");
+        Serial.printf("Firmware mismatch\n");
+        Serial.printf("Your hardware might be the T-Deck-Pro V1.1, but please download the H693_factory_v1.x.bin firmware.\n");
+        Serial.printf("T-Deck-Pro V1.0   ---   H693_factory_v1.x.bin \n");
+        Serial.printf("T-Deck-Pro V1.1   ---   H693_factory_v2.x.bin\n");
+    }
+#endif
 
     Serial.printf(" ------------- SPIFFS ------------- \n");
 
