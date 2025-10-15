@@ -2,12 +2,15 @@
 
 |            Firmware                |          Remarks            |
 | :--------------------------------: | :-------------------------: |
-|   H693_factory_v1.2_20250412.bin   |      Factory firmware       |
-| H693_factory_v1.2_20250412_fix.bin |        Fix firmware         |
-|           test_EPD.bin             |        Display test         |
-|        test_pcm5102a.bin           | Sound test（non-4G version） |
+|   H693_factory_v2.0_20250916.bin   |      Factory firmware       |
+|           examples/test_EPD.bin    |        Display test         |
+|        examples/test_pcm5102a.bin  | Sound test（non-4G version） |
 
-Fix firmware：To download the firmware using `flash_download_tools`, you need to first ERASE by clicking `ERASE`. After the download is complete, you need to plug and unplug the usb once.
+Notice: 
+
+After the first download of `Factory firmware` or after the flash is checked, the spiffs.bin file system needs to be downloaded.
+
+![alt text](image.png)
 
 ## :two: Download Instructions
 

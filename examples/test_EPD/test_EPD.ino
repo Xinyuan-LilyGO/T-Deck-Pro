@@ -20,9 +20,9 @@
 #include <GxEPD2_BW.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 
-#define BOARD_SPI_CS    34
-#define BOARD_SPI_DC    35
-#define BOARD_SPI_RST  -1
+#define BOARD_SPI_CS   34
+#define BOARD_SPI_DC   35
+#define BOARD_SPI_RST  16
 #define BOARD_SPI_BUSY 37
 #define BOARD_SPI_SCK  36
 #define BOARD_SPI_MOSI 33

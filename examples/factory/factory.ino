@@ -35,7 +35,7 @@ GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_3
 uint8_t *decodebuffer = NULL;
 lv_timer_t *flush_timer = NULL;
 int disp_refr_mode = DISP_REFR_MODE_PART;
-const char HelloWorld[] = "T-Deck-Pro!";
+const char HelloWorld[] = "T-Deck-Pro V1.1";
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
 
@@ -62,7 +62,10 @@ static bool ink_screen_init()
     {
         display.fillScreen(GxEPD_WHITE);
         display.setCursor(x, y);
-        display.print(HelloWorld);
+        display.println(HelloWorld);
+
+        display.setCursor(x+20, y+20);
+        display.print(UI_T_DECK_PRO_VERSION);
     }
     while (display.nextPage());
     display.hibernate();
@@ -128,6 +131,27 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         epd_idx++;
     }
 
+    // lv_coord_t w = LV_HOR_RES;
+    // lv_coord_t h = LV_VER_RES;
+
+    if(disp_refr_mode == DISP_REFR_MODE_PART) {
+        display.setPartialWindow(0, 0, w, h);
+    } else if(disp_refr_mode == DISP_REFR_MODE_FULL){
+        display.setFullWindow();
+    }
+
+    display.firstPage();
+    do {
+        display.drawInvertedBitmap(0, 0, decodebuffer, w, h - 3, GxEPD_BLACK);
+    }
+    while (display.nextPage());
+    display.hibernate();
+    
+    static int idx = 0;
+    Serial.printf("flush_timer_cb:%d, %s\n", idx++, (disp_refr_mode == 0 ?"full":"part"));
+
+    disp_refr_mode = DISP_REFR_MODE_PART;
+
     // Serial.printf("x1=%d, y1=%d, x2=%d, y2=%d\n", area->x1, area->y1, area->x2, area->y2);
 
     /*IMPORTANT!!!
@@ -144,7 +168,7 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
     if(touched) {
         data->state = LV_INDEV_STATE_PR;
 
-        Serial.printf("x = %d, y = %d\n", last_x, last_y);
+        // Serial.printf("x = %d, y = %d\n", last_x, last_y);
     } else {
         data->state = LV_INDEV_STATE_REL;
     }
@@ -169,7 +193,7 @@ static void lvgl_init(void)
     disp_drv.hor_res = LCD_HOR_SIZE;
     disp_drv.ver_res = LCD_VER_SIZE;
     disp_drv.flush_cb = disp_flush;
-    disp_drv.render_start_cb = dips_render_start_cb;
+    // disp_drv.render_start_cb = dips_render_start_cb;
     disp_drv.draw_buf = &draw_buf_dsc_1;
     // disp_drv.rounder_cb = display_driver_rounder_cb;
     disp_drv.full_refresh = 1;
@@ -346,38 +370,11 @@ void setup()
     gpio_hold_dis((gpio_num_t)BOARD_6609_EN);
     gpio_hold_dis((gpio_num_t)BOARD_LORA_EN);
     gpio_hold_dis((gpio_num_t)BOARD_GPS_EN);
-    gpio_hold_dis((gpio_num_t)BOARD_1V8_EN);
     gpio_hold_dis((gpio_num_t)BOARD_A7682E_PWRKEY);
 
     gpio_deep_sleep_hold_dis();
 
     Serial.begin(115200);
-
-    // delay(3000);
-
-    // // frist startup
-    // preferences.begin("my-app", false);
-    // bool start = preferences.getBool("counter", false);
-    // Serial.printf("start = %d\n", start);
-    // if(start == false)
-    // {
-    //     Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
-    //     bool ret = bq25896_init();
-    //     if(ret == true)
-    //     {
-    //         preferences.putBool("counter", true);
-    //         Serial.printf("bq25896 init success\n");
-    //     }else{
-    //         Serial.printf("bq25896 init failure\n");
-    //     }
-
-    //     while (PPM.isVbusIn())
-    //     {
-    //         delay(1000);
-    //         Serial.println("Unplug the USB");
-    //     }
-    //     PPM.shutdown();
-    // }
 
     // IO
     pinMode(BOARD_KEYBOARD_LED, OUTPUT);
@@ -385,15 +382,16 @@ void setup()
     pinMode(BOARD_6609_EN, OUTPUT);         // enable 7682 module
     pinMode(BOARD_LORA_EN, OUTPUT);         // enable LORA module
     pinMode(BOARD_GPS_EN, OUTPUT);          // enable GPS module
-    pinMode(BOARD_1V8_EN, OUTPUT);          // enable gyroscope module
     pinMode(BOARD_A7682E_PWRKEY, OUTPUT); 
     digitalWrite(BOARD_KEYBOARD_LED, LOW);
     digitalWrite(BOARD_MOTOR_PIN, LOW);
     digitalWrite(BOARD_6609_EN, HIGH);
     digitalWrite(BOARD_LORA_EN, HIGH);
     digitalWrite(BOARD_GPS_EN, HIGH);
-    digitalWrite(BOARD_1V8_EN, HIGH);
     digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
+
+    pinMode(BOARD_EPD_BL, OUTPUT); 
+    digitalWrite(BOARD_EPD_BL, HIGH);
 
     // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
     // before powering on, all CS signals should be pulled high and in an unselected state;
@@ -420,8 +418,6 @@ void setup()
             if(address == BOARD_I2C_ADDR_TOUCH){
                 // flag_Touch_init = true;
                 Serial.printf("[0x%x] TOUCH find!\n", address);
-            } else if (address == BOARD_I2C_ADDR_LTR_553ALS) {
-                Serial.printf("[0x%x] LTR_553ALS find!\n", address);
             } else if (address == BOARD_I2C_ADDR_GYROSCOPDE) {
                 Serial.printf("[0x%x] GYROSCOPDE find!\n", address);
             } else if (address == BOARD_I2C_ADDR_KEYBOARD) {
@@ -458,7 +454,6 @@ void setup()
     peri_init_st[E_PERI_SD]         = sd_care_init();
     peri_init_st[E_PERI_GPS]        = gps_init();
     peri_init_st[E_PERI_BHI260AP]   = BHI260AP_init();
-    peri_init_st[E_PERI_LTR_553ALS] = LTR553_init();
     peri_init_st[E_PERI_A7682E]     = A7682E_init();
 
     if(peri_init_st[E_PERI_A7682E] == false)
@@ -477,7 +472,6 @@ void setup()
     digitalWrite(BOARD_6609_EN, HIGH);
     digitalWrite(BOARD_LORA_EN, HIGH);
     digitalWrite(BOARD_GPS_EN, HIGH);
-    digitalWrite(BOARD_1V8_EN, HIGH);
     digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
 }
 

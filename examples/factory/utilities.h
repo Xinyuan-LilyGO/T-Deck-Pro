@@ -7,8 +7,8 @@
  */
 #pragma once
 
-#define UI_T_DECK_PRO_VERSION    "v1.3-250910"  // Software version
-#define BOARD_T_DECK_PRO_VERSION "v1.0-241106"  // Hardware version
+#define UI_T_DECK_PRO_VERSION    "v2.0-250916"  // Software version
+#define BOARD_T_DECK_PRO_VERSION "v2.0-250915"  // Hardware version
 
 // Serial
 #define SerialMon   Serial      // 
@@ -17,7 +17,6 @@
 
 // IIC Addr
 #define BOARD_I2C_ADDR_TOUCH      0x1A // Touch        --- CST328
-#define BOARD_I2C_ADDR_LTR_553ALS 0x23 // Light sensor --- LTR_553ALS
 #define BOARD_I2C_ADDR_GYROSCOPDE 0x28 // Gyroscope    --- BHI260AP
 #define BOARD_I2C_ADDR_KEYBOARD   0x34 // Keyboard     --- TCA8418
 #define BOARD_I2C_ADDR_BQ27220    0x55 //
@@ -41,12 +40,7 @@
 #define BOARD_TOUCH_SCL BOARD_I2C_SCL
 #define BOARD_TOUCH_SDA BOARD_I2C_SDA
 #define BOARD_TOUCH_INT 12
-#define BOARD_TOUCH_RST 45
-
-// LTR-553ALS-WA  beam sensor
-#define BOARD_ALS_SCL BOARD_I2C_SCL
-#define BOARD_ALS_SDA BOARD_I2C_SDA
-#define BOARD_ALS_INT 16
+#define BOARD_TOUCH_RST 38
 
 // Gyroscope
 #define BOARD_GYROSCOPDE_SCL BOARD_I2C_SCL
@@ -69,7 +63,8 @@
 #define BOARD_EPD_DC   35
 #define BOARD_EPD_CS   34
 #define BOARD_EPD_BUSY 37
-#define BOARD_EPD_RST  -1
+#define BOARD_EPD_RST  16
+#define BOARD_EPD_BL   45  // screen backlight
 
 // SD card
 #define BOARD_SD_CS   48
@@ -107,7 +102,6 @@
 
 // EN
 #define BOARD_GPS_EN  39  // enable GPS module
-#define BOARD_1V8_EN  38  // enable gyroscope module
 #define BOARD_6609_EN 41  // enable 7682 module
 #define BOARD_LORA_EN 46  // enable LORA module
 

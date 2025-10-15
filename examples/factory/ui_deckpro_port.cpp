@@ -107,7 +107,7 @@ void ui_setting_set_lora_status(bool on)
 void ui_setting_set_gyro_status(bool on)
 {
     // enable gyroscope module power
-    digitalWrite(BOARD_1V8_EN, on);
+    digitalWrite(BOARD_EPD_BL, on);
     default_gyro_status = on;
 }
 void ui_setting_set_a7682_status(bool on)
@@ -363,25 +363,6 @@ int ui_input_get_keypay_val(char *v)
 void ui_input_set_keypay_flag(void)
 {
     keypad_set_flag();
-}
-
-int ui_other_get_LTR(int *ch0, int *ch1, int *ps)
-{
-    // if(ch0 != NULL) *ch0 = lv_rand(0, LCD_VER_SIZE);
-    // if(ch1 != NULL) *ch1 = lv_rand(0, LCD_VER_SIZE);
-    // if(ps  != NULL) *ps  = lv_rand(0, LCD_VER_SIZE);
-
-    if((ch0 != NULL) && (ch1 != NULL) && (ps != NULL))
-    {
-        *ch0 = LTR_553ALS_get_channel(0);
-        *ch1 = LTR_553ALS_get_channel(1);
-        *ps  = LTR_553ALS_get_ps();
-    }
-    else
-    {
-        Serial.printf("[%d] %s : Argument cannot be empty", __LINE__, __FILE__);
-    }
-    return 1;
 }
 
 int ui_other_get_gyro(float *gyro_x, float *gyro_y, float *gyro_z)

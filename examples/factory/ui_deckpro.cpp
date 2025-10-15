@@ -1460,7 +1460,6 @@ static ui_test_handle test_handle_list[] = {
     { .name="Keypad",     .peri_id=E_PERI_KYEPAD     , .cb=ui_test_get },
     { .name="GPS",        .peri_id=E_PERI_GPS        , .cb=ui_test_get },
     { .name="BHI260AP",   .peri_id=E_PERI_BHI260AP   , .cb=ui_test_get },
-    { .name="LTR_553ALS", .peri_id=E_PERI_LTR_553ALS , .cb=ui_test_get },
     { .name="INK_SCREEN", .peri_id=E_PERI_INK_SCREEN , .cb=ui_test_get },
 };
 
@@ -1999,7 +1998,6 @@ static void input_timer_event(lv_timer_t *t)
     if(sec > 20) // 2s
     {
         sec = 0;
-        ui_other_get_LTR(&ch0, &ch1, &ps);
         lv_label_set_text_fmt(light_sensor, "   c0: %d\n"
                                             "   c1: %d\n"
                                             "   ps: %d", ch0, ch1 ,ps);
@@ -2718,7 +2716,6 @@ static void create11(lv_obj_t *parent)
     digitalWrite(BOARD_LORA_EN, LOW);
     digitalWrite(BOARD_GPS_EN, LOW);
     
-    digitalWrite(BOARD_1V8_EN, LOW);
     digitalWrite(BOARD_A7682E_PWRKEY, LOW);
 
     // gpio_hold_en((gpio_num_t)BOARD_GPS_PPS);
@@ -2730,7 +2727,6 @@ static void create11(lv_obj_t *parent)
     gpio_hold_en((gpio_num_t)BOARD_6609_EN);
     gpio_hold_en((gpio_num_t)BOARD_LORA_EN);
     gpio_hold_en((gpio_num_t)BOARD_GPS_EN);
-    gpio_hold_en((gpio_num_t)BOARD_1V8_EN);
     gpio_hold_en((gpio_num_t)BOARD_A7682E_PWRKEY);
     gpio_deep_sleep_hold_en();
 
