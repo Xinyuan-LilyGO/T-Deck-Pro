@@ -41,9 +41,14 @@ void setup()
   pinMode(BOARD_EPD_CS, OUTPUT); 
   digitalWrite(BOARD_EPD_CS, HIGH);
 
-  pinMode(BOARD_EPD_BL, OUTPUT); 
-  digitalWrite(BOARD_EPD_BL, HIGH);
+  // Backlight test
+  for(int i = 0; i < 255; i++) {
+    analogWrite(BOARD_EPD_BL, i);
+    delay(10);
+  }
+  analogWrite(BOARD_EPD_BL, 0);
 
+  // SPI init
   SPI.begin(BOARD_EPD_SCK, -1, BOARD_EPD_MOSI, BOARD_EPD_CS);
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
