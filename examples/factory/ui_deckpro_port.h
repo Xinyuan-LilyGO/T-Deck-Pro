@@ -144,6 +144,10 @@ void ui_shutdown_on(void);
 bool ui_pcm5102_cb(const char *at_cmd);void ui_pcm5102_stop(void);
 void ui_pcm5102_stop(void);
 
+// [ screen 12 ] --- Motor
+void ui_motor_loop(int i);
+void ui_motor_stop(void);
+
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

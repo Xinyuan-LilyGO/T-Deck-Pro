@@ -20,6 +20,8 @@
 #include "peripheral.h"
 #include <Preferences.h>
 
+Adafruit_DRV2605 drv;
+
 Preferences preferences;
 
 TinyGsm modem(SerialAT);
@@ -155,10 +157,11 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 
     display.firstPage();
     do {
+        display.fillScreen(GxEPD_WHITE);
         display.drawInvertedBitmap(0, 0, decodebuffer, w, h - 3, GxEPD_BLACK);
     }
     while (display.nextPage());
-    display.hibernate();
+    // display.hibernate();
     
     static int idx = 0;
     Serial.printf("flush_timer_cb:%d, %s\n", idx++, (disp_refr_mode == 0 ?"full":"part"));
@@ -397,7 +400,7 @@ void setup()
     pinMode(BOARD_GPS_EN, OUTPUT);          // enable GPS module
     pinMode(BOARD_A7682E_PWRKEY, OUTPUT); 
     digitalWrite(BOARD_KEYBOARD_LED, LOW);
-    digitalWrite(BOARD_MOTOR_PIN, LOW);
+    digitalWrite(BOARD_MOTOR_PIN, HIGH);
     digitalWrite(BOARD_6609_EN, HIGH);
     digitalWrite(BOARD_LORA_EN, HIGH);
     digitalWrite(BOARD_GPS_EN, HIGH);
@@ -454,6 +457,20 @@ void setup()
         }
     }
 
+    if(isT_Deck_Pro_v1_1) {
+        Serial.println("Adafruit DRV2605 Basic test");
+        if (!drv.begin()) {
+            Serial.println("Could not find DRV2605");
+            while (1) delay(10);
+        }
+        
+        drv.selectLibrary(1);
+        
+        // I2C trigger by sending 'go' command 
+        // default, internal trigger when sending GO command
+        drv.setMode(DRV2605_MODE_INTTRIG); 
+    }
+
 #ifdef T_DECK_PRO_V1_1
     if(!isT_Deck_Pro_v1_1){
         Serial.printf(" ------------- ERROR ------------- \n");
@@ -502,7 +519,7 @@ void setup()
     disp_full_refr();
 
     digitalWrite(BOARD_KEYBOARD_LED, LOW);
-    digitalWrite(BOARD_MOTOR_PIN, LOW);
+    digitalWrite(BOARD_MOTOR_PIN, HIGH);
     digitalWrite(BOARD_6609_EN, HIGH);
     digitalWrite(BOARD_LORA_EN, HIGH);
     digitalWrite(BOARD_GPS_EN, HIGH);

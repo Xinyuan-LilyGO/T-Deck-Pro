@@ -14,6 +14,7 @@
 #include "SPI.h"
 #include "FS.h"
 #include "SPIFFS.h"
+#include "Adafruit_DRV2605.h"
 
 /*********************************************************************************
  *                                   DEFINES
@@ -37,7 +38,7 @@ extern bool peri_init_st[E_PERI_NUM_MAX];
 extern XPowersPPM PPM;
 extern BQ27220 bq27220;
 extern Audio audio;
-
+extern Adafruit_DRV2605 drv;
 /*********************************************************************************
  *                                  TYPEDEFS
  * *******************************************************************************/

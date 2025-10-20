@@ -470,3 +470,21 @@ void audio_info(const char *info){
 // void audio_lasthost(const char *info){  //stream URL played
 //     Serial.print("lasthost    ");Serial.println(info);
 // }
+
+
+void ui_motor_loop(int i)
+{
+    if(i > 1 && i < 123) {
+        // set the effect to play
+        drv.setWaveform(0, i);  // play effect 
+        drv.setWaveform(1, 0);       // end waveform
+
+        // play the effect!
+        drv.go();
+    }
+}
+
+void ui_motor_stop(void)
+{
+    drv.stop();
+}

@@ -117,7 +117,7 @@ static struct menu_btn menu_btn_list[] =
     {SCREEN7_ID,  &img_touch,   "Input",    23,     189},
     {SCREEN8_ID,  &img_A7682E,  "A7682E",   95,     189},
     {SCREEN9_ID,  &img_lora,    "Shutdown", 167,    189},
-    {SCREEN10_ID, &img_PCM5102, "PCM5102",  23,     13},  // Page two
+    {SCREEN12_ID, &img_motor,   "Motor",    23,     13},  // Page two
     {SCREEN11_ID, &img_PCM5102, "Sleep",    95,     13},  // 
 };
 
@@ -2754,6 +2754,69 @@ static scr_lifecycle_t screen11 = {
     .destroy = destroy11,
 };
 #endif
+//************************************[ screen 12 ]****************************************** Motor
+#if 1
+static lv_obj_t * motor_label;
+static lv_timer_t *motor_timer = NULL;
+
+static void scr12_btn_event_cb(lv_event_t * e)
+{
+    if(e->code == LV_EVENT_CLICKED){
+        scr_mgr_pop(false);
+    }
+}
+
+void motor_timer_cb(lv_timer_t *t)
+{
+    static int idx = 1;
+    
+    lv_label_set_text_fmt(motor_label, "DRV2605  Waveform Library Effects List see datasheet part 11.2 \n"
+                            "Effects : %d\n", idx);
+    lv_obj_center(motor_label);
+
+    ui_motor_loop(idx++);
+
+    if(idx > 123) {
+        idx = 0;
+    }
+}
+
+static void create12(lv_obj_t *parent)
+{
+    motor_label = lv_label_create(parent);
+    lv_obj_set_width(motor_label, lv_pct(95));
+    lv_obj_set_style_text_font(motor_label, FONT_BOLD_SIZE_15, LV_PART_MAIN);
+    lv_label_set_long_mode(motor_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(motor_label, "DRV2605  Waveform Library Effects List see datasheet part 11.2 \n"
+                            "Effects : 0");
+    lv_obj_center(motor_label);
+
+    motor_timer = lv_timer_create(motor_timer_cb, 2000, NULL);
+    // back 
+    scr_back_btn_create(parent, "Motor", scr8_btn_event_cb);
+}
+static void entry12(void) 
+{
+    ui_disp_full_refr();
+}
+static void exit12(void) {
+    ui_disp_full_refr();
+}
+static void destroy12(void) {
+    if(motor_timer) {
+        lv_timer_del(motor_timer);
+        motor_timer = NULL;
+    }
+    ui_motor_stop();
+}
+
+static scr_lifecycle_t screen12 = {
+    .create = create12,
+    .entry = entry12,
+    .exit  = exit12,
+    .destroy = destroy12,
+};
+#endif
 //************************************[ UI ENTRY ]******************************************
 static lv_obj_t *menu_keypad;
 static lv_timer_t *menu_timer = NULL;
@@ -2904,7 +2967,7 @@ void ui_deckpro_entry(void)
     scr_mgr_register(SCREEN9_ID,    &screen9);      // Shutdown
     scr_mgr_register(SCREEN10_ID,   &screen10);     // PCM5102
     scr_mgr_register(SCREEN11_ID,   &screen11);
-    
+    scr_mgr_register(SCREEN12_ID,   &screen12);     // Motor
 
     scr_mgr_switch(SCREEN0_ID, false); // set root screen
     scr_mgr_set_anim(LV_SCR_LOAD_ANIM_OVER_LEFT, LV_SCR_LOAD_ANIM_OVER_LEFT, LV_SCR_LOAD_ANIM_OVER_LEFT);
