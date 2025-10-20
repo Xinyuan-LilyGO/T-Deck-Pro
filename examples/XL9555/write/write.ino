@@ -70,7 +70,7 @@ void setup()
     *    XL9555_SLAVE_ADDRESS6  = 0x26
     *    XL9555_SLAVE_ADDRESS7  = 0x27
     */
-    const uint8_t chip_address = XL9555_UNKOWN_ADDRESS;
+    const uint8_t chip_address = XL9555_SLAVE_ADDRESS0;
 
     if (!io.init(Wire, SENSOR_SDA, SENSOR_SCL, chip_address)) {
         while (1) {

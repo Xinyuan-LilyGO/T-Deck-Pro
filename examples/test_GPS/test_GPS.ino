@@ -1,10 +1,17 @@
 
-
 #include <TinyGPS++.h>
+#include "ExtensionIOXL9555.hpp"
 
-#define BOARD_GPS_EN  39 // enable GPS module
-#define BOARD_GPS_RXD 44
-#define BOARD_GPS_TXD 43
+// XL9555
+#define BOARD_I2C_SDA  13
+#define BOARD_I2C_SCL  14
+#define BOARD_XL9555_02_GPS_EN      (2)     // Connected to XL9555 IO01
+
+// GPS      ESP32 
+// RX  ---  TX IO2
+// TX  ---  RX IO16
+#define BOARD_GPS_RXD 2
+#define BOARD_GPS_TXD 16
 #define BOARD_GPS_PPS 1
 #define SerialMon Serial
 #define SerialGPS Serial2
@@ -16,15 +23,24 @@ bool gps_init(void);
 // The TinyGPSPlus object
 TinyGPSPlus gps;
 uint8_t buffer[256];
-
+ExtensionIOXL9555 io;
 
 void setup(void)
 {
-    // enable GPS module
-    pinMode(BOARD_GPS_EN, OUTPUT);
-    digitalWrite(BOARD_GPS_EN, HIGH);
-
     SerialMon.begin(38400);
+
+    // XL9555 Init
+    if (!io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
+        while (1) {
+            Serial.println("Failed to find XL9555 - check your wiring!");
+            delay(1000);
+        }
+    }
+    io.configPort(ExtensionIOXL9555::PORT0, 0x00); // Set PORT0 as output ,mask = 0x00 = all pin output
+    io.configPort(ExtensionIOXL9555::PORT1, 0x00);  // Set PORT1 as output ,mask = 0x00 = all pin output
+    io.digitalWrite(BOARD_XL9555_02_GPS_EN, HIGH); // Enable GPS power
+
+    
     gps_init();
 
     delay(1500);

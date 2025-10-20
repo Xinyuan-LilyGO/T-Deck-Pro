@@ -1,6 +1,24 @@
-#include <RadioLib.h>
 
-#define BOARD_LORA_EN  46
+// notice:
+// The power control pin LORA_EN of LoRa is connected to the XL9555 chip.
+// So when using LoRa, you need to first enable the LORA_EN through the XL9555 chip;
+
+// LORA_SEL determines whether to use the internal antenna or the external antenna;
+// Enable LORA_SEL through the XL9555 chip;
+// 
+// LORA_SEL set HIGH --- external antenna
+// LORA_SEL set LOW --- internal antenna
+
+#include <RadioLib.h>
+#include "ExtensionIOXL9555.hpp"
+
+// XL9555
+#define BOARD_I2C_SDA  13
+#define BOARD_I2C_SCL  14
+#define BOARD_XL9555_01_LORA_EN     (1)     // Connected to XL9555 IO01
+#define BOARD_XL9555_04_LORA_SEL    (4)     // Connected to XL9555 IO04
+
+// LoRa
 #define BOARD_LORA_CS   3
 #define BOARD_LORA_BUSY 6
 #define BOARD_LORA_RST  4
@@ -12,23 +30,33 @@
 #define RADIO_FREQ  850.0
 
 SX1262 radio = new Module(BOARD_LORA_CS, BOARD_LORA_INT, BOARD_LORA_RST, BOARD_LORA_BUSY);
+ExtensionIOXL9555 io;
 
-// receive 
-int receiveState = RADIOLIB_ERR_NONE;
-volatile bool receivedFlag = false;
+// transmit 
+int transmissionState = RADIOLIB_ERR_NONE;
+volatile bool transmittedFlag = false;
 
-void set_receive_flag(void){
-    receivedFlag = true;
+void set_transmit_flag(void){
+    transmittedFlag = true;
 }
 
 void setup(){
     Serial.begin(115200);
-    while(!Serial) { delay (10); }
+    // while(!Serial) { delay (10); }
 
-    // 
-    pinMode(BOARD_LORA_EN, OUTPUT);
-    digitalWrite(BOARD_LORA_EN, HIGH);
+    // XL9555 Init
+    if (!io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
+        while (1) {
+            Serial.println("Failed to find XL9555 - check your wiring!");
+            delay(1000);
+        }
+    }
+    io.configPort(ExtensionIOXL9555::PORT0, 0x00); // Set PORT0 as output ,mask = 0x00 = all pin output
+    io.configPort(ExtensionIOXL9555::PORT1, 0x00);  // Set PORT1 as output ,mask = 0x00 = all pin output
+    io.digitalWrite(BOARD_XL9555_01_LORA_EN, HIGH); // Enable LoRa power
+    io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW); // use internal antenna
 
+    // LoRa Init
     SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI, BOARD_LORA_CS);
 
     Serial.print(F("[SX1262] Initializing ... "));
@@ -114,67 +142,56 @@ void setup(){
 
     Serial.println(F("All settings succesfully changed!"));
 
-    radio.setPacketReceivedAction(set_receive_flag);
-    Serial.print(F("[SX1262] Starting to listen ... "));
-    state = radio.startReceive();
-    if (state == RADIOLIB_ERR_NONE) {
-        Serial.println(F("success!"));
-    } else {
-        Serial.print(F("failed, code "));
-        Serial.println(state);
-    }
+    radio.setPacketSentAction(set_transmit_flag);
+    Serial.println(F("[SX1262] Sending first packet ... "));
+    transmissionState = radio.startTransmit("Hello World!");
+  
 }
+
+int count = 0;
 
 void loop()
 {
-  // check if the flag is set
-  if(receivedFlag) {
+    // check if the previous transmission finished
+  if(transmittedFlag) {
     // reset flag
-    receivedFlag = false;
+    transmittedFlag = false;
 
-    // you can read received data as an Arduino String
-    String str;
-    int state = radio.readData(str);
+    if (transmissionState == RADIOLIB_ERR_NONE) {
+      // packet was successfully sent
+      Serial.println(F("transmission finished!"));
 
-    // you can also read received data as byte array
-    /*
-      byte byteArr[8];
-      int numBytes = radio.getPacketLength();
-      int state = radio.readData(byteArr, numBytes);
-    */
-
-    if (state == RADIOLIB_ERR_NONE) {
-      // packet was successfully received
-      Serial.println(F("[SX1262] Received packet!"));
-
-      // print data of the packet
-      Serial.print(F("[SX1262] Data:\t\t"));
-      Serial.println(str);
-
-      // print RSSI (Received Signal Strength Indicator)
-      Serial.print(F("[SX1262] RSSI:\t\t"));
-      Serial.print(radio.getRSSI());
-      Serial.println(F(" dBm"));
-
-      // print SNR (Signal-to-Noise Ratio)
-      Serial.print(F("[SX1262] SNR:\t\t"));
-      Serial.print(radio.getSNR());
-      Serial.println(F(" dB"));
-
-      // print frequency error
-      Serial.print(F("[SX1262] Frequency error:\t"));
-      Serial.print(radio.getFrequencyError());
-      Serial.println(F(" Hz"));
-
-    } else if (state == RADIOLIB_ERR_CRC_MISMATCH) {
-      // packet was received, but is malformed
-      Serial.println(F("CRC error!"));
+      // NOTE: when using interrupt-driven transmit method,
+      //       it is not possible to automatically measure
+      //       transmission data rate using getDataRate()
 
     } else {
-      // some other error occurred
       Serial.print(F("failed, code "));
-      Serial.println(state);
+      Serial.println(transmissionState);
 
     }
+
+    // clean up after transmission is finished
+    // this will ensure transmitter is disabled,
+    // RF switch is powered down etc.
+    radio.finishTransmit();
+
+    // wait a second before transmitting again
+    delay(1000);
+
+    // send another one
+    Serial.print(F("[SX1262] Sending another packet ... "));
+
+    // you can transmit C-string or Arduino string up to
+    // 256 characters long
+    String str = "Hello World! #" + String(count++);
+    transmissionState = radio.startTransmit(str);
+
+    // you can also transmit byte array up to 256 bytes long
+    /*
+      byte byteArr[] = {0x01, 0x23, 0x45, 0x67,
+                        0x89, 0xAB, 0xCD, 0xEF};
+      transmissionState = radio.startTransmit(byteArr, 8);
+    */
   }
 }

@@ -1,9 +1,10 @@
 
 #include <Adafruit_TCA8418.h>
-#define BOARD_I2C_ADDR_KEYBOARD   0x34 
-#define KEYPAD_SDA          13
-#define KEYPAD_SCL          14
-#define KEYPAD_IRQ          15
+#define BOARD_I2C_ADDR_KEYBOARD 0x34
+#define BOARD_KEYBOARD_SDA 13
+#define BOARD_KEYBOARD_SCL 14
+#define BOARD_KEYBOARD_INT 15
+#define BOARD_KEYBOARD_LED 42
 
 //
 #define KEYPAD_ROWS 4
@@ -14,16 +15,32 @@ Adafruit_TCA8418 keypad;
 void setup(void)
 {
     Serial.begin(115200);
-    while (!Serial) {
+    // while (!Serial)
+    // {
+    //     delay(10);
+    // }
+    // Backlight test
+    for (int i = 0; i < 255; i++)
+    {
+        analogWrite(BOARD_KEYBOARD_LED, i);
         delay(10);
     }
+    for (int i = 255; i > 0; i--)
+    {
+        analogWrite(BOARD_KEYBOARD_LED, i);
+        delay(10);
+    }
+    analogWrite(BOARD_KEYBOARD_LED, 0);
+
     Serial.println(__FILE__);
 
-    Wire.begin(KEYPAD_SDA, KEYPAD_SCL);
+    Wire.begin(BOARD_KEYBOARD_SDA, BOARD_KEYBOARD_SCL);
 
-    if (!keypad.begin(BOARD_I2C_ADDR_KEYBOARD, &Wire)) {
+    if (!keypad.begin(BOARD_I2C_ADDR_KEYBOARD, &Wire))
+    {
         Serial.println("keypad not found, check wiring & pullups!");
-        while (1);
+        while (1)
+            ;
     }
     // configure the size of the keypad matrix.
     // all other pins will be inputs
@@ -39,8 +56,10 @@ void loop(void)
     {
         //  datasheet page 15 - Table 1
         int k = keypad.getEvent();
-        if (k & 0x80) Serial.print("PRESS\tR: ");
-        else Serial.print("RELEASE\tR: ");
+        if (k & 0x80)
+            Serial.print("PRESS\tR: ");
+        else
+            Serial.print("RELEASE\tR: ");
         k &= 0x7F;
         k--;
         Serial.print(k / 10);

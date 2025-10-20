@@ -31,14 +31,24 @@
 #include <SPI.h>
 #include <Arduino.h>
 #include "SensorBHI260AP.hpp"
+#include "ExtensionIOXL9555.hpp"
 
-#define BOARD_BHI260AP_EN     38  // enable gyroscope module
+// The power control pin 1V8_EN of Gyroscope is connected to the XL9555 chip.
+// So when using Gyroscope, you need to first enable the 1V8_EN through the XL9555 chip;
+
+// XL9555
+#define BOARD_I2C_SDA  13
+#define BOARD_I2C_SCL  14
+#define BOARD_XL9555_03_1V8_EN     (3)     // Connected to XL9555 IO03
+// Gyroscope
 #define BHI260AP_SDA          13
 #define BHI260AP_SCL          14
 #define BHI260AP_IRQ          21
 #define BHI260AP_RST          -1
 
 SensorBHI260AP bhy;
+ExtensionIOXL9555 io;
+
 void accel_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len, uint64_t *timestamp)
 {
     struct bhy2_data_xyz data;
@@ -73,9 +83,18 @@ void setup()
     while (!Serial);
 
     // IO : enable gyroscope module
-    pinMode(BOARD_BHI260AP_EN, OUTPUT);
-    digitalWrite(BOARD_BHI260AP_EN, HIGH);
+    // XL9555 Init
+    if (!io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
+        while (1) {
+            Serial.println("Failed to find XL9555 - check your wiring!");
+            delay(1000);
+        }
+    }
+    io.configPort(ExtensionIOXL9555::PORT0, 0x00); // Set PORT0 as output ,mask = 0x00 = all pin output
+    io.configPort(ExtensionIOXL9555::PORT1, 0x00);  // Set PORT1 as output ,mask = 0x00 = all pin output
+    io.digitalWrite(BOARD_XL9555_03_1V8_EN, HIGH); // Enable gyroscope power
 
+    // Gyroscope Init
     // Set the reset pin and interrupt pin, if any
     bhy.setPins(BHI260AP_RST, BHI260AP_IRQ);
 

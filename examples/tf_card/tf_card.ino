@@ -42,6 +42,9 @@
 #include "SD.h"
 #include "SPI.h"
 
+#define BOARD_EPD_CS   34
+#define BOARD_LORA_CS   3
+#define BOARD_LORA_RST  4
 /*
 Uncomment and set up if you want to use custom pins for the SPI communication
 #define REASSIGN_PINS
@@ -56,6 +59,7 @@ int sck =  36;
 int miso = 47;
 int mosi = 33;
 int cs =   48;
+
 
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Serial.printf("Listing directory: %s\n", dirname);
@@ -218,6 +222,15 @@ void setup(){
     Serial.begin(115200);
     while(!Serial) { delay (10); }
 
+    // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
+    // before powering on, all CS signals should be pulled high and in an unselected state;
+    pinMode(BOARD_LORA_CS, OUTPUT); 
+    digitalWrite(BOARD_LORA_CS, HIGH);
+    pinMode(BOARD_LORA_RST, OUTPUT); 
+    digitalWrite(BOARD_LORA_RST, HIGH);
+    pinMode(BOARD_EPD_CS, OUTPUT); 
+    digitalWrite(BOARD_EPD_CS, HIGH);
+    
 #ifdef REASSIGN_PINS
     SPI.begin(sck, miso, mosi, cs);
 #endif
