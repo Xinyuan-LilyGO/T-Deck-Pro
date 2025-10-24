@@ -85,8 +85,8 @@ static void flush_timer_cb(lv_timer_t *t)
         }
         while (display.nextPage());
         Serial.printf("flush_timer_cb\n");
-        display.hibernate();
-        display.powerOff();
+        // display.hibernate();
+        // display.powerOff();
         lv_timer_pause(flush_timer);
     }
 }
@@ -194,7 +194,7 @@ void setup()
     // pinMode(BOARD_EPD_BL, OUTPUT); 
     // digitalWrite(BOARD_EPD_BL, HIGH);
     
-    touch.setPins(BOARD_TOUCH_RST, BOARD_TOUCH_INT);
+    touch.setPins(-1, BOARD_TOUCH_INT);
     bool hasTouch = touch.begin(Wire, BOARD_I2C_ADDR_TOUCH, BOARD_TOUCH_SDA, BOARD_TOUCH_SCL);
     if (!hasTouch) {
         Serial.println("Failed to find Capacitive Touch !");
