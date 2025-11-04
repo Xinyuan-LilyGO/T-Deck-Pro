@@ -15,21 +15,30 @@ jobs:
     strategy:
       matrix:
         example: 
-          - examples/factory
           - examples/A7682E/test_AT
-          - examples/bq27220
-          - examples/bq25896_shutdown
+          - examples/battery/bq25896
+          - examples/battery/bq25896_shutdown
+          - examples/battery/bq27220
+          - examples/Elink_paper/display
+          - examples/Elink_paper/GDEQ031T10_Arduino
+          - examples/Elink_paper/test_lvgl
+          - examples/Elink_paper/touch
+          - examples/ES8311/playFormSD
+          - examples/ES8311/playWAV
+          # - examples/factory
+          - examples/keypad
+          - examples/LoRa_sx1262/lora_recv
+          - examples/LoRa_sx1262/lora_send
+          - examples/motor/audio
+          - examples/motor/basic
+          - examples/motor/complex
+          - examples/motor/realtime
           - examples/test_BHI260AP
-          - examples/test_EPD
           - examples/test_GPS
-          - examples/test_keypad
-          - examples/test_lora_recv
-          - examples/test_lora_send
-          - examples/test_lvgl
-          - examples/test_pcm5102a
-          - examples/test_sd
-          - examples/test_touchpad
           - examples/test_wifi
+          - examples/tf_card
+          - examples/XL9555/read
+          - examples/XL9555/write
 
     steps:
       - uses: actions/checkout@v4
