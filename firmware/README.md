@@ -34,4 +34,4 @@ First, plug in the Type-C data cable
 ![alt text](../docs/firmware_dowmload/image-2.png)
 
 
-
+4、When the download is complete, click the `RST` button to restart the device;
