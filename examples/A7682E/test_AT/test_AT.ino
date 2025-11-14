@@ -7,7 +7,7 @@
 #define BOARD_I2C_SDA  13
 #define BOARD_I2C_SCL  14
 #define BOARD_XL9555_00_6609_EN     (0)     // Connected to XL9555 IO00, enable A7682 module
-#define BOARD_XL9555_06_SHUTDOWN    (6)     // Connected to XL9555 IO06, enable power amplifier, increase the volume of the speaker
+#define BOARD_XL9555_06_AMPLIFIER    (6)     // Connected to XL9555 IO06, enable power amplifier, increase the volume of the speaker
 #define BOARD_XL9555_10_PWEKEY_EN   (8)     // Connected to XL9555 IO10, power on/off ctrl
 
 /* Module A7682E and ES8311 share the output for headphones and speakers.
@@ -48,7 +48,7 @@ void setup(void)
     io.configPort(ExtensionIOXL9555::PORT1, 0x00);      // Set PORT1 as output ,mask = 0x00 = all pin output
     io.digitalWrite(BOARD_XL9555_00_6609_EN, HIGH);     // enable A7682 module power
     io.digitalWrite(BOARD_XL9555_10_PWEKEY_EN, HIGH);   // power on
-    io.digitalWrite(BOARD_XL9555_06_SHUTDOWN, HIGH);    // Enable power amplifier
+    io.digitalWrite(BOARD_XL9555_06_AMPLIFIER, HIGH);    // Enable power amplifier
     io.digitalWrite(BOARD_XL9555_12_AUDIO_SEL, HIGH);   // Audio output selection: A7682E module
     
     // A7682  Power on

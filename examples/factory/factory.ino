@@ -18,24 +18,23 @@
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include "factory.h"
 #include "peripheral.h"
-#include <Preferences.h>
-
-Preferences preferences;
+#include <SensorWireHelper.h>
 
 TinyGsm modem(SerialAT);
 TaskHandle_t a7682_handle;
 
 XPowersPPM PPM;
 BQ27220 bq27220;
-Audio audio;
 
 TouchDrvCSTXXX touch;
 GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_EPD_CS, BOARD_EPD_DC, BOARD_EPD_RST, BOARD_EPD_BUSY)); // GDEQ031T10 240x320, UC8253, (no inking, backside mark KEGMO 3100)
+ExtensionIOXL9555 xl9555_io;
+Adafruit_DRV2605 motor_drv;
+EspCodec codec;
 
 uint8_t *decodebuffer = NULL;
-lv_timer_t *flush_timer = NULL;
 int disp_refr_mode = DISP_REFR_MODE_PART;
-const char HelloWorld[] = "T-Deck-Pro!";
+const char HelloWorld[] = "T-Deck-Pro MAX v0.1";
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
 
@@ -63,47 +62,13 @@ static bool ink_screen_init()
         display.fillScreen(GxEPD_WHITE);
         display.setCursor(x, y);
         display.print(HelloWorld);
+
+        display.setCursor(x+35, y+30);
+        display.print(UI_T_DECK_PRO_VERSION);
     }
     while (display.nextPage());
     display.hibernate();
     return true;
-}
-
-static void flush_timer_cb(lv_timer_t *t)
-{
-    static int idx = 0;
-    lv_disp_t *disp = lv_disp_get_default();
-    if(disp->rendering_in_progress == false) {
-        lv_coord_t w = LV_HOR_RES;
-        lv_coord_t h = LV_VER_RES;
-
-        if(disp_refr_mode == DISP_REFR_MODE_PART) {
-            display.setPartialWindow(0, 0, w, h);
-        } else if(disp_refr_mode == DISP_REFR_MODE_FULL){
-            display.setFullWindow();
-        }
-
-        display.firstPage();
-        do {
-            display.drawInvertedBitmap(0, 0, decodebuffer, w, h - 3, GxEPD_BLACK);
-        }
-        while (display.nextPage());
-        display.hibernate();
-        
-        Serial.printf("flush_timer_cb:%d, %s\n", idx++, (disp_refr_mode == 0 ?"full":"part"));
-
-        disp_refr_mode = DISP_REFR_MODE_PART;
-        lv_timer_pause(flush_timer);
-    }
-}
-
-static void dips_render_start_cb(struct _lv_disp_drv_t * disp_drv)
-{
-    if(flush_timer == NULL) {
-        flush_timer = lv_timer_create(flush_timer_cb, 10, NULL);
-    } else {
-        lv_timer_resume(flush_timer);
-    }
 }
 
 static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
@@ -127,6 +92,24 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         decodebuffer[epd_idx] = pixel.full;
         epd_idx++;
     }
+
+    static int idx = 0;
+    if(disp_refr_mode == DISP_REFR_MODE_PART) {
+        display.setPartialWindow(0, 0, w, h);
+    } else if(disp_refr_mode == DISP_REFR_MODE_FULL){
+        display.setFullWindow();
+    }
+
+    display.firstPage();
+    do {
+        display.drawInvertedBitmap(0, 0, decodebuffer, w, h - 3, GxEPD_BLACK);
+    }
+    while (display.nextPage());
+    // display.hibernate();
+    
+    Serial.printf("flush_timer_cb:%d, %s\n", idx++, (disp_refr_mode == 0 ?"full":"part"));
+
+    disp_refr_mode = DISP_REFR_MODE_PART;
 
     // Serial.printf("x1=%d, y1=%d, x2=%d, y2=%d\n", area->x1, area->y1, area->x2, area->y2);
 
@@ -169,7 +152,7 @@ static void lvgl_init(void)
     disp_drv.hor_res = LCD_HOR_SIZE;
     disp_drv.ver_res = LCD_VER_SIZE;
     disp_drv.flush_cb = disp_flush;
-    disp_drv.render_start_cb = dips_render_start_cb;
+    // disp_drv.render_start_cb = dips_render_start_cb;
     disp_drv.draw_buf = &draw_buf_dsc_1;
     // disp_drv.rounder_cb = display_driver_rounder_cb;
     disp_drv.full_refresh = 1;
@@ -293,23 +276,6 @@ static bool A7682E_init(void)
     return (retry < retry_cnt);
 }
 
-static bool pcm5102a_init(void)
-{
-    bool ret = audio.setPinout(BOARD_I2S_BCLK, BOARD_I2S_LRC, BOARD_I2S_DOUT);
-
-    if (ret == false) 
-        Serial.printf("[%d] Execution error\n", __LINE__);
-
-    audio.setVolume(21); // 0...21
-
-    pinMode(BOARD_6609_EN, OUTPUT);
-    digitalWrite(BOARD_6609_EN, HIGH);
-
-    // audio_paly_flag = audio.connecttoFS(SD, "/voice_time/BBIBBI.mp3");
-
-    return true;
-}
-
 static void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Serial.printf("Listing spiffs directory: %s\n", dirname);
 
@@ -343,57 +309,8 @@ static void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
 
 void setup()
 {
-    gpio_hold_dis((gpio_num_t)BOARD_6609_EN);
-    gpio_hold_dis((gpio_num_t)BOARD_LORA_EN);
-    gpio_hold_dis((gpio_num_t)BOARD_GPS_EN);
-    gpio_hold_dis((gpio_num_t)BOARD_1V8_EN);
-    gpio_hold_dis((gpio_num_t)BOARD_A7682E_PWRKEY);
-
-    gpio_deep_sleep_hold_dis();
-
+    setCpuFrequencyMhz(240);
     Serial.begin(115200);
-
-    // delay(3000);
-
-    // // frist startup
-    // preferences.begin("my-app", false);
-    // bool start = preferences.getBool("counter", false);
-    // Serial.printf("start = %d\n", start);
-    // if(start == false)
-    // {
-    //     Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
-    //     bool ret = bq25896_init();
-    //     if(ret == true)
-    //     {
-    //         preferences.putBool("counter", true);
-    //         Serial.printf("bq25896 init success\n");
-    //     }else{
-    //         Serial.printf("bq25896 init failure\n");
-    //     }
-
-    //     while (PPM.isVbusIn())
-    //     {
-    //         delay(1000);
-    //         Serial.println("Unplug the USB");
-    //     }
-    //     PPM.shutdown();
-    // }
-
-    // IO
-    pinMode(BOARD_KEYBOARD_LED, OUTPUT);
-    pinMode(BOARD_MOTOR_PIN, OUTPUT);
-    pinMode(BOARD_6609_EN, OUTPUT);         // enable 7682 module
-    pinMode(BOARD_LORA_EN, OUTPUT);         // enable LORA module
-    pinMode(BOARD_GPS_EN, OUTPUT);          // enable GPS module
-    pinMode(BOARD_1V8_EN, OUTPUT);          // enable gyroscope module
-    pinMode(BOARD_A7682E_PWRKEY, OUTPUT); 
-    digitalWrite(BOARD_KEYBOARD_LED, LOW);
-    digitalWrite(BOARD_MOTOR_PIN, LOW);
-    digitalWrite(BOARD_6609_EN, HIGH);
-    digitalWrite(BOARD_LORA_EN, HIGH);
-    digitalWrite(BOARD_GPS_EN, HIGH);
-    digitalWrite(BOARD_1V8_EN, HIGH);
-    digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
 
     // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
     // before powering on, all CS signals should be pulled high and in an unselected state;
@@ -406,49 +323,102 @@ void setup()
     pinMode(BOARD_EPD_CS, OUTPUT); 
     digitalWrite(BOARD_EPD_CS, HIGH);
 
-
     // i2c devices
-    byte error, address;
-    int nDevices = 0;
     Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
-    Serial.printf(" ------------- I2C ------------- \n");
-    for(address = 0x01; address < 0x7F; address++){
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-        if(error == 0){ // 0: success.
-            nDevices++;
-            if(address == BOARD_I2C_ADDR_TOUCH){
-                // flag_Touch_init = true;
-                Serial.printf("[0x%x] TOUCH find!\n", address);
-            } else if (address == BOARD_I2C_ADDR_LTR_553ALS) {
-                Serial.printf("[0x%x] LTR_553ALS find!\n", address);
-            } else if (address == BOARD_I2C_ADDR_GYROSCOPDE) {
-                Serial.printf("[0x%x] GYROSCOPDE find!\n", address);
-            } else if (address == BOARD_I2C_ADDR_KEYBOARD) {
-                Serial.printf("[0x%x] KEYBOARD find!\n", address);
-            } else if (address == BOARD_I2C_ADDR_BQ27220) {
-                Serial.printf("[0x%x] BQ27220 find!\n", address);
-            } else if (address == BOARD_I2C_ADDR_BQ25896) {
-                Serial.printf("[0x%x] BQ25896 find!\n", address);
-            }
+    Serial.printf(" -------------------------- I2C -------------------------- \n");
+    SensorWireHelper::dumpDevices(Wire, Serial);
+
+    // XL9555 Init
+    Serial.printf(" -------------------------- XL9555 -------------------------- \n");
+    if (xl9555_io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
+        const uint8_t expands[] = {
+            BOARD_XL9555_00_6609_EN,
+            BOARD_XL9555_01_LORA_EN,
+            BOARD_XL9555_02_GPS_EN,
+            BOARD_XL9555_03_1V8_EN,
+            // BOARD_XL9555_04_LORA_SEL,
+            BOARD_XL9555_05_MOTOR_EN,
+            BOARD_XL9555_06_AMPLIFIER,
+            BOARD_XL9555_07_TOUCH_RST,
+            BOARD_XL9555_10_PWEKEY_EN,
+            BOARD_XL9555_11_KEY_RST,
+            BOARD_XL9555_12_AUDIO_SEL,
+        };
+        for (auto pin : expands) {
+            xl9555_io.pinMode(pin, OUTPUT);
+            xl9555_io.digitalWrite(pin, HIGH);
+            delay(1);
+        }
+        // HIGH --- external antenna
+        // LOW --- internal antenna (default)
+        xl9555_io.pinMode(BOARD_XL9555_04_LORA_SEL, OUTPUT);
+        xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW);
+
+        // xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
+        // delay(100);
+        // xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, HIGH);
+    } else {
+        while (1) {
+            Serial.println("Failed to find XL9555 - check your wiring!");
+            delay(1000);
         }
     }
 
-    Serial.printf(" ------------- SPIFFS ------------- \n");
+    Serial.print("PORT0:0b");
+    Serial.print(xl9555_io.readPort(ExtensionIOXL9555::PORT0), BIN);
+    Serial.print("\tPORT1:0b");
+    Serial.println(xl9555_io.readPort(ExtensionIOXL9555::PORT1), BIN);
 
-    if(!SPIFFS.begin(true)){
-        Serial.println("SPIFFS Mount Failed");
-        return;
+    // open backlight
+    analogWrite(BOARD_EPD_BL, 50);
+    analogWrite(BOARD_KEYBOARD_LED, 255);
+
+    // init motor
+    Serial.printf(" -------------------------- DRV2605 -------------------------- \n");
+    if(!motor_drv.begin()) {
+        while (1) {
+            Serial.println("Failed to find DRV2605 - Motor drive");
+            delay(1000);
+        }
     }
+    motor_drv.selectLibrary(1);
+    motor_drv.setMode(DRV2605_MODE_INTTRIG);
+    motor_drv.setWaveform(0, 13); // play effect
+    motor_drv.setWaveform(1, 0);      // end waveform
+    motor_drv.go();
 
-    listDir(SPIFFS, "/", 0);
-    Serial.println(" ------------- PERI ------------- ");
+    Serial.printf(" -------------------------- ES8311 -------------------------- \n");
+    codec.setPins(BOARD_ES8311_MCLK, BOARD_ES8311_SCLK, BOARD_ES8311_LRCK, BOARD_ES8311_ASDOUT, BOARD_ES8311_DSDIN);
+    if (codec.begin(Wire, BOARD_I2C_ADDR_ES8311, CODEC_TYPE_ES8311)) {
+        Serial.println("Codec init succeeded");
+        peri_init_st[E_PERI_ES8311] = true;
+    } else {
+        Serial.println("Warning: Failed to find Codec");
+    }
+    codec.setPaPinCallback([](bool enable, void *user_data) {
+        //  HIGH : the headphones and speakers output the sound from A7682E.
+        //  LOW :  the headphones and speakers output the sound from ES8311.
+        ((ExtensionIOXL9555 *)user_data)->digitalWrite(BOARD_XL9555_12_AUDIO_SEL, LOW);
+        ((ExtensionIOXL9555 *)user_data)->digitalWrite(BOARD_XL9555_06_AMPLIFIER, HIGH);
+    }, &xl9555_io);
+    codec.setVolume(50); // range: [0, 100]
+    // codec.playWAV((uint8_t*)wav_hex, wav_hex_len);
+
+    // Serial.printf(" ------------- SPIFFS ------------- \n");
+
+    // if(!SPIFFS.begin(true)){
+    //     Serial.println("SPIFFS Mount Failed");
+    //     return;
+    // }
+
+    // listDir(SPIFFS, "/", 0);
+    // Serial.println(" ------------- PERI ------------- ");
 
     // SPI
     SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI);
 
     // init peripheral
-    touch.setPins(BOARD_TOUCH_RST, BOARD_TOUCH_INT);
+    touch.setPins(-1, BOARD_TOUCH_INT); // touch_rst connect the IO07 of the chip XL9555
     peri_init_st[E_PERI_INK_SCREEN] = ink_screen_init();
     peri_init_st[E_PERI_LORA]       = lora_init();
     peri_init_st[E_PERI_TOUCH]      = touch.begin(Wire, BOARD_I2C_ADDR_TOUCH, BOARD_TOUCH_SDA, BOARD_TOUCH_SCL);
@@ -458,13 +428,7 @@ void setup()
     peri_init_st[E_PERI_SD]         = sd_care_init();
     peri_init_st[E_PERI_GPS]        = gps_init();
     peri_init_st[E_PERI_BHI260AP]   = BHI260AP_init();
-    peri_init_st[E_PERI_LTR_553ALS] = LTR553_init();
     peri_init_st[E_PERI_A7682E]     = A7682E_init();
-
-    if(peri_init_st[E_PERI_A7682E] == false)
-    {
-        peri_init_st[E_PERI_PCM5102A] = pcm5102a_init();
-    }
 
     lvgl_init();
 
@@ -472,40 +436,20 @@ void setup()
 
     disp_full_refr();
 
-    digitalWrite(BOARD_KEYBOARD_LED, LOW);
-    digitalWrite(BOARD_MOTOR_PIN, LOW);
-    digitalWrite(BOARD_6609_EN, HIGH);
-    digitalWrite(BOARD_LORA_EN, HIGH);
-    digitalWrite(BOARD_GPS_EN, HIGH);
-    digitalWrite(BOARD_1V8_EN, HIGH);
-    digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
+    // close backlight
+    analogWrite(BOARD_EPD_BL, 0);
+    analogWrite(BOARD_KEYBOARD_LED, 0);
 }
 
 
-uint32_t tick = 0;
 
 void loop()
 {
     lv_task_handler();
     keypad_loop();
 
-    if(peri_init_st[E_PERI_PCM5102A] == true) 
-    {
-        audio.loop();
-    }
     
     delay(1);
-
-
-    if(millis() - tick > 3000) {
-        tick = millis();
-        // printf("BOARD_LORA_CS=%d\n", digitalRead(BOARD_LORA_CS));
-        // printf("BOARD_LORA_RST=%d\n", digitalRead(BOARD_LORA_RST));
-        // printf("BOARD_LORA_BUSY=%d\n", digitalRead(BOARD_LORA_BUSY));
-        // printf("BOARD_LORA_EN=%d\n", digitalRead(BOARD_LORA_EN));
-
-        // printf("BOARD_EPD_CS=%d\n", digitalRead(BOARD_EPD_CS));
-    }
 }
 
 /*********************************************************************************

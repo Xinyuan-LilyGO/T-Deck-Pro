@@ -8,12 +8,14 @@
 #define XPOWERS_CHIP_BQ25896
 #include <XPowersLib.h>
 #include "bq27220.h"
-#include "Audio.h"
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
 #include "FS.h"
 #include "SPIFFS.h"
+#include "ExtensionIOXL9555.hpp"
+#include "Adafruit_DRV2605.h"
+#include "esp_codec.h"
 
 /*********************************************************************************
  *                                   DEFINES
@@ -36,8 +38,9 @@ extern TaskHandle_t a7682_handle;
 extern bool peri_init_st[E_PERI_NUM_MAX];
 extern XPowersPPM PPM;
 extern BQ27220 bq27220;
-extern Audio audio;
-
+extern ExtensionIOXL9555 xl9555_io;
+extern Adafruit_DRV2605 motor_drv;
+extern EspCodec codec;
 /*********************************************************************************
  *                                  TYPEDEFS
  * *******************************************************************************/

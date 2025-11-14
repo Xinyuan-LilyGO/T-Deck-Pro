@@ -18,7 +18,7 @@ enum {
     E_PERI_BHI260AP,
     E_PERI_LTR_553ALS,
     E_PERI_A7682E,
-    E_PERI_PCM5102A,
+    E_PERI_ES8311,
     E_PERI_INK_SCREEN,
     E_PERI_MIC,
     E_PERI_NUM_MAX,
@@ -53,11 +53,6 @@ void keypad_set_flag(void);
 // gyro
 bool BHI260AP_init(void);
 void BHI260AP_get_val(int val_type, float *x, float *y, float *z);
-
-// LTR553
-bool LTR553_init(void);
-uint16_t LTR_553ALS_get_channel(int ch); // ch 0~1
-uint16_t LTR_553ALS_get_ps(void);
 
 // gps u-blox m10q
 bool gps_init(void);

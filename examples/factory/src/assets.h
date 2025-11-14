@@ -18,10 +18,11 @@ LV_IMG_DECLARE(img_batt)
 LV_IMG_DECLARE(img_test)
 LV_IMG_DECLARE(img_wifi)
 LV_IMG_DECLARE(img_A7682E)
-LV_IMG_DECLARE(img_PCM5102)
+LV_IMG_DECLARE(img_music)
 LV_IMG_DECLARE(img_touch)
 LV_IMG_DECLARE(img_start)
-
+LV_IMG_DECLARE(img_motor)
+LV_IMG_DECLARE(img_sleep)
 
 // font
 LV_FONT_DECLARE(Font_Mono_Bold_14)

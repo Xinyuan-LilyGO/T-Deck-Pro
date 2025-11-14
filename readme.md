@@ -14,15 +14,21 @@
 
 **T-Deck-Pro MAX V0.1** Revision Update Notes: 
 
-Use XL9555 to control the LoRa power supply and antenna selection
+- Added the XL9555 IO expansion chip 
+
+- Remove the distinction between the audio version and the 4G version. Now, integrate the 4G (A7682E) and the audio (ES8311) onto a single board. 
+
+- Add a LoRa antenna selection switch, controlled by XL9555 to select the internal or external antenna. The default is the internal antenna. 
+
+- Add an audio channel output selection switch, and control the selection of using A7682E / ES8311 audio output through XL9555. 
+
+- Add the vibration motor driving chip DRV2605
 
 ### 1、Version
 
-The T-Deck-Pro comes in two versions, one with the audio module PCM512A and one with the 4G module A7682E
+How to confirm that your device is `T-Deck-Pro MAX V0.1`? Download the [WireScan](./firmware/examples/WireScan.bin) firmware for detection.
 
-As shown in the figure below, the annotated modules of the two versions are different;
-
-![alt text](./docs/README_img/image-1.png)
+How to [download the firmware?](./firmware/)
 
 ### 2、Where to buy.
 
@@ -30,21 +36,22 @@ As shown in the figure below, the annotated modules of the two versions are diff
 
 ## :one: Product 🎁
 
-|       H693       |           T-Deck-Pro           |
+|       H693       |      T-Deck-Pro MAX V0.1       |
 | :--------------: | :----------------------------: |
 |       MCU        |            ESP32-S3            |
 |  Flash / PSRAM   |            16M / 8M            |
 |       LoRa       |             SX1262             |
 |       GPS        |            MIA-M10Q            |
 |     Display      |      GDEQ031T10 (320x240)      |
-|    4G-Module     |       A7682E  🟢Optional       |
-|      Audio       |       PCM512A 🟢Optional       |
+|    4G-Module     |             A7682E             |
 | Battery Capacity |          3.7V-1500mAh          |
 |   Battery Chip   | BQ25896 (0x6B), BQ27220 (0x55) |
+|      Audio       |         ES8311 (0x18)          |
 |      Touch       |         CST328 (0x1A)          |
 |    Gyroscope     |        BHI260AP (0x28)         |
 |     Keyboard     |         TCA8418 (0x34)         |
-|     Motor        |          DRV2605 (0x5A)        |
+|   IO Expansion   |         XL9555 (0x20)          |
+|      Motor       |         DRV2605 (0x5A)         |
 
 A7682E https://en.simcom.com/product/A7682E.html
 
@@ -132,17 +139,6 @@ SSL
 | Upload Speed                         | 921600                             |
 | USB Mode                             | **CDC and JTAG**                   |
 
-3. Folder structure:
-~~~
-├─boards  : Some information about the board for the platformio.ini configuration project;
-├─docs    : Place some documents;
-├─data    : Picture resources used by the program;
-├─example : Some examples;
-├─firmare : `factory` compiled firmware;
-├─hardware: Schematic diagram of the board, chip data;
-├─lib     : Libraries used in the project;
-~~~
-
 ## :four: Pins 🎁
 
 ~~~c
@@ -175,22 +171,32 @@ SSL
 #define BOARD_XL9555_INT            (-1)
 #define BOARD_XL9555_SDA            BOARD_I2C_SDA
 #define BOARD_XL9555_SCL            BOARD_I2C_SCL
-#define BOARD_XL9555_00_6609_EN     (0)     // A7682E VDD Ctrl
-#define BOARD_XL9555_01_LORA_EN     (1)
-#define BOARD_XL9555_02_GPS_EN      (2)
-#define BOARD_XL9555_03_1V8_EN      (3)     // BHI260AP VDD Ctrl
+#define BOARD_XL9555_00_6609_EN     (0)     // HIGH: Enable the A7682E power supply
+#define BOARD_XL9555_01_LORA_EN     (1)     // HIGH: Enable the SX1262 power supply
+#define BOARD_XL9555_02_GPS_EN      (2)     // HIGH: Enable the GPS power supply
+#define BOARD_XL9555_03_1V8_EN      (3)     // HIGH: Enable the BHI260AP power supply
+/* LORA_SEL determines whether to use the internal antenna 
+/  or the external antenna; Connected to XL9555 IO04
+/   HIGH --- external antenna
+/   LOW --- internal antenna  */
 #define BOARD_XL9555_04_LORA_SEL    (4)
-#define BOARD_XL9555_05_MOTOR_EN    (5)
-#define BOARD_XL9555_06_SHUTDOWN    (6)
-#define BOARD_XL9555_07_TOUCH_RST   (7)
-#define BOARD_XL9555_10_PWEKEY_EN   (8)     // A7682E POWERKEY
-#define BOARD_XL9555_11_KEY_RST     (9)
+#define BOARD_XL9555_05_MOTOR_EN    (5)     // HIGH: Enable the DRV2605 power supply
+// Connected to XL9555 IO06, enable power amplifier,
+// increase the volume of the speaker
+#define BOARD_XL9555_06_AMPLIFIER    (6)     // HIGH: Enable power amplifier
+#define BOARD_XL9555_07_TOUCH_RST   (7)     // LOW: Reset touch
+#define BOARD_XL9555_10_PWEKEY_EN   (8)     // HIGH: Enable A7682E POWERKEY
+#define BOARD_XL9555_11_KEY_RST     (9)     // LOW: Reset keyboard
+/* Module A7682E and ES8311 share the output for headphones and speakers.
+/  Select the audio output through AUDIO_SEL. When AUDIO_SEL is
+/  HIGH : the headphones and speakers output the sound from A7682E.
+/  LOW :  the headphones and speakers output the sound from ES8311. */
 #define BOARD_XL9555_12_AUDIO_SEL   (10)
-#define BOARD_XL9555_13             (11)
-#define BOARD_XL9555_14             (12)
-#define BOARD_XL9555_15             (13)
-#define BOARD_XL9555_16             (14)
-#define BOARD_XL9555_17             (15)
+#define BOARD_XL9555_13             (11)    // Reserve
+#define BOARD_XL9555_14             (12)    // Reserve
+#define BOARD_XL9555_15             (13)    // Reserve
+#define BOARD_XL9555_16             (14)    // Reserve
+#define BOARD_XL9555_17             (15)    // Reserve
 
 // Keyboard
 #define BOARD_KEYBOARD_SCL BOARD_I2C_SCL
@@ -219,11 +225,11 @@ SSL
 // ES8311
 #define BOARD_ES8311_SCL BOARD_I2C_SCL
 #define BOARD_ES8311_SDA BOARD_I2C_SDA
-#define BOARD_ES8311_MCLK 38
-#define BOARD_ES8311_SCLK 39
-#define BOARD_ES8311_ASDOUT 17
-#define BOARD_ES8311_LRCK 18
-#define BOARD_ES8311_DSDIN 40
+#define BOARD_ES8311_MCLK       38
+#define BOARD_ES8311_SCLK       39
+#define BOARD_ES8311_ASDOUT     40
+#define BOARD_ES8311_LRCK       18
+#define BOARD_ES8311_DSDIN      17
 
 // SPI
 #define BOARD_SPI_SCK  36
@@ -255,8 +261,8 @@ SSL
 #define BOARD_LORA_INT  5
 
 // GPS
-#define BOARD_GPS_RXD 16
-#define BOARD_GPS_TXD 2
+#define BOARD_GPS_RXD 2
+#define BOARD_GPS_TXD 16
 #define BOARD_GPS_PPS 1
 
 // A7682E Modem
@@ -286,4 +292,10 @@ A:This might be due to the `rst` pin of the screen not being connected to the ha
 ## :seven: Schematic & 3D 🎁
 
 For more information, see the `./hardware` directory.
+
+
+
+----
+
+
 

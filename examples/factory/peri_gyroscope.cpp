@@ -100,7 +100,7 @@ bool BHI260AP_init(void)
     }
 
     // Output all available sensors to Serial
-    // bhy.printSensors(Serial);
+    bhy.printSensors(Serial);
 
     float sample_rate = 100.0;      /* Read out hintr_ctrl measured at 100Hz */
     uint32_t report_latency_ms = 0; /* Report immediately */

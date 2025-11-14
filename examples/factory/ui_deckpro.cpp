@@ -117,8 +117,9 @@ static struct menu_btn menu_btn_list[] =
     {SCREEN7_ID,  &img_touch,   "Input",    23,     189},
     {SCREEN8_ID,  &img_A7682E,  "A7682E",   95,     189},
     {SCREEN9_ID,  &img_lora,    "Shutdown", 167,    189},
-    {SCREEN10_ID, &img_PCM5102, "PCM5102",  23,     13},  // Page two
-    {SCREEN11_ID, &img_PCM5102, "Sleep",    95,     13},  // 
+    {SCREEN10_ID, &img_music,   "Music",    23,     13},  // Page two
+    {SCREEN11_ID, &img_sleep,   "Sleep",    95,     13},  // 
+    {SCREEN12_ID, &img_motor,   "Motor",    167,    13},  // 
 };
 
 static void menu_btn_event_cb(lv_event_t *e)
@@ -272,19 +273,6 @@ static void create0(lv_obj_t *parent)
     lv_obj_set_style_pad_all(menu_screen2, 0, LV_PART_MAIN);
     lv_obj_align(menu_screen2, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_add_flag(menu_screen2, LV_OBJ_FLAG_HIDDEN);
-
-    if(ui_test_a7682e() == false)
-    {
-        for(int i = 0; i < GET_BUFF_LEN(menu_btn_list); i++)
-        {
-            if(menu_btn_list[i].idx == SCREEN8_ID)
-            {
-                menu_btn_list[i].idx = SCREEN10_ID;
-                menu_btn_list[i].name = "PCM5012";
-                menu_btn_list[i].icon = &img_PCM5102;
-            }
-        }
-    }
 
     for(int i = 0; i < MENU_BTN_NUM; i++) {
         if(i < 9) {
@@ -1133,13 +1121,6 @@ static void scr3_GPS_updata(void)
 
     lv_snprintf(buf, 16, "%02d:%02d:%02d", hour, min, sec);
     gps_set_line(label_list[7], "time:", buf);
-
-    // lv_snprintf(buf, 16, "%0.1f", alt);
-    // gps_set_line(label_list[3], "alt:", buf);
-
-    // lv_snprintf(buf, 16, "%d", usat);
-    // gps_set_line(label_list[5], "usat:", buf);
-
 }
 
 static void GPS_loop_timer_event(lv_timer_t * t)
@@ -1456,11 +1437,10 @@ static ui_test_handle test_handle_list[] = {
     { .name="BQ27220",    .peri_id=E_PERI_BQ27220    , .cb=ui_test_get },
     { .name="SD Card",    .peri_id=E_PERI_SD         , .cb=ui_test_get },
     { .name="A7682E",     .peri_id=E_PERI_A7682E     , .cb=ui_test_get },
-    { .name="PCM5102A",   .peri_id=E_PERI_PCM5102A   , .cb=ui_test_get },
+    { .name="ES8311",     .peri_id=E_PERI_ES8311     , .cb=ui_test_get },
     { .name="Keypad",     .peri_id=E_PERI_KYEPAD     , .cb=ui_test_get },
     { .name="GPS",        .peri_id=E_PERI_GPS        , .cb=ui_test_get },
     { .name="BHI260AP",   .peri_id=E_PERI_BHI260AP   , .cb=ui_test_get },
-    { .name="LTR_553ALS", .peri_id=E_PERI_LTR_553ALS , .cb=ui_test_get },
     { .name="INK_SCREEN", .peri_id=E_PERI_INK_SCREEN , .cb=ui_test_get },
 };
 
@@ -1961,7 +1941,6 @@ static scr_lifecycle_t screen6_2 = {
 static lv_obj_t *scr7_cont;
 static lv_obj_t *input_touch;
 static lv_obj_t *input_keypad;
-static lv_obj_t *light_sensor;
 static lv_obj_t *gyroscope;
 static lv_timer_t *input_timer;
 
@@ -1999,10 +1978,6 @@ static void input_timer_event(lv_timer_t *t)
     if(sec > 20) // 2s
     {
         sec = 0;
-        ui_other_get_LTR(&ch0, &ch1, &ps);
-        lv_label_set_text_fmt(light_sensor, "   c0: %d\n"
-                                            "   c1: %d\n"
-                                            "   ps: %d", ch0, ch1 ,ps);
 
         ui_other_get_gyro(&gyro_x, &gyro_y, &gyro_z);
         lv_label_set_text_fmt(gyroscope,    "   gyros_x: %.3f\n"
@@ -2043,21 +2018,6 @@ static void create7(lv_obj_t *parent)
     // lv_obj_set_style_border_width(input_keypad, 1, LV_PART_MAIN);
     lv_label_set_long_mode(input_keypad, LV_LABEL_LONG_WRAP);
     lv_label_set_text_fmt(input_keypad, "Keypad: ");
-
-    lv_obj_t *lab1 = lv_label_create(scr7_cont);
-    lv_obj_set_style_text_font(lab1, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);
-    lv_label_set_text(lab1, "light sensor");
-
-    light_sensor = lv_label_create(scr7_cont);
-    // lv_obj_set_height(input_keypad, 100);
-    lv_obj_set_width(light_sensor, lv_pct(95));
-    lv_obj_set_style_pad_all(light_sensor, 0, LV_PART_MAIN);
-    lv_obj_set_style_text_font(light_sensor, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);
-    // lv_obj_set_style_border_width(light_sensor, 1, LV_PART_MAIN);
-    lv_label_set_long_mode(light_sensor, LV_LABEL_LONG_WRAP);
-    lv_label_set_text_fmt(light_sensor, "   c0: 000\n"
-                                        "   c1: 000\n"
-                                        "   ps: 000");
 
     lv_obj_t *lab2 = lv_label_create(scr7_cont);
     lv_obj_set_style_text_font(lab2, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);
@@ -2101,8 +2061,8 @@ static scr_lifecycle_t screen7 = {
 //************************************[ screen 8 ]****************************************** A7682E
 // --------------------- screen 8 --------------------- A7682E
 #if 1
-static lv_obj_t *a7682_list;
-static lv_obj_t *a7682_page;
+static lv_obj_t *a7682_list = NULL;
+static lv_obj_t *a7682_page = NULL;
 static int a7682_num = 0;
 static int a7682_page_num = 0;
 static int a7682_curr_page = 0;
@@ -2205,6 +2165,12 @@ static void scr8_btn_event_cb(lv_event_t * e)
 
 static void create8(lv_obj_t *parent) 
 {
+    if(ui_test_a7682e() == false)
+    {
+        lv_obj_t *back8_label = scr_back_btn_create(parent, ("A7682E"), scr8_btn_event_cb);
+        return;
+    }
+
     a7682_list = lv_list_create(parent);
     lv_obj_set_size(a7682_list, LV_HOR_RES, lv_pct(88));
     lv_obj_align(a7682_list, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -2289,6 +2255,7 @@ static void create8(lv_obj_t *parent)
 static void entry8(void) 
 {
     ui_disp_full_refr();
+    ui_xl9555_audio_sel(HIGH);
 }
 static void exit8(void) {
     ui_disp_full_refr();
@@ -2491,7 +2458,7 @@ static int pcm5102_curr_page = 0;
 
 static ui_pcm5102_handle pcm5102_handle_list[] = 
 {
-    {"PCM5102 Audio", NULL, NULL, ui_pcm5102_cb},
+    {"ES8311 play Wav", NULL, NULL, ui_pcm5102_cb},
 };
 
 static void pcm5102_item_create(int curr_apge);
@@ -2653,7 +2620,7 @@ static void create10(lv_obj_t *parent)
     lv_obj_set_style_text_color(pcm5102_page, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(pcm5102_page, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_t *back10_label = scr_back_btn_create(parent, ("PCM5102"), scr10_btn_event_cb);
+    lv_obj_t *back10_label = scr_back_btn_create(parent, ("ES8311"), scr10_btn_event_cb);
 }
 static void entry10(void) 
 {
@@ -2685,59 +2652,7 @@ static void scr11_btn_event_cb(lv_event_t * e)
 
 static void create11(lv_obj_t *parent)
 {
-    extern TouchDrvCSTXXX touch;
-
-    touch.sleep();
-
-    lora_sleep();
-
-    SerialGPS.end();
-    
-    // pinMode(BOARD_GPS_PPS, OUTPUT);
-    // pinMode(BOARD_GPS_RXD, OUTPUT);
-    // pinMode(BOARD_GPS_TXD, OUTPUT);
-    // pinMode(BOARD_LORA_RST, OUTPUT);
-    // pinMode(BOARD_TOUCH_RST, OUTPUT);
-    // pinMode(BOARD_LORA_BUSY, OUTPUT);
-
-    // digitalWrite(BOARD_GPS_PPS, LOW);
-    // digitalWrite(BOARD_GPS_RXD, LOW);
-    // digitalWrite(BOARD_GPS_TXD, LOW);
-    // digitalWrite(BOARD_LORA_RST, LOW);
-    // digitalWrite(BOARD_TOUCH_RST, LOW);
-    // digitalWrite(BOARD_LORA_BUSY, LOW);
-
-    gpio_reset_pin((gpio_num_t)BOARD_GPS_PPS);
-    gpio_reset_pin((gpio_num_t)BOARD_GPS_RXD);
-    gpio_reset_pin((gpio_num_t)BOARD_GPS_TXD);
-    gpio_reset_pin((gpio_num_t)BOARD_LORA_RST);
-    gpio_reset_pin((gpio_num_t)BOARD_TOUCH_RST);
-    gpio_reset_pin((gpio_num_t)BOARD_LORA_BUSY);
-
-    digitalWrite(BOARD_6609_EN, LOW);
-    digitalWrite(BOARD_LORA_EN, LOW);
-    digitalWrite(BOARD_GPS_EN, LOW);
-    
-    digitalWrite(BOARD_1V8_EN, LOW);
-    digitalWrite(BOARD_A7682E_PWRKEY, LOW);
-
-    // gpio_hold_en((gpio_num_t)BOARD_GPS_PPS);
-    // gpio_hold_en((gpio_num_t)BOARD_TOUCH_RST);
-    // gpio_hold_en((gpio_num_t)BOARD_GPS_RXD);
-    // gpio_hold_en((gpio_num_t)BOARD_GPS_TXD);
-    // gpio_hold_en((gpio_num_t)BOARD_LORA_RST);
-    // gpio_hold_en((gpio_num_t)BOARD_LORA_BUSY);
-    gpio_hold_en((gpio_num_t)BOARD_6609_EN);
-    gpio_hold_en((gpio_num_t)BOARD_LORA_EN);
-    gpio_hold_en((gpio_num_t)BOARD_GPS_EN);
-    gpio_hold_en((gpio_num_t)BOARD_1V8_EN);
-    gpio_hold_en((gpio_num_t)BOARD_A7682E_PWRKEY);
-    gpio_deep_sleep_hold_en();
-
-    
-    // esp_sleep_enable_ext0_wakeup((gpio_num_t)ENCODER_KEY, 0);                            
-    esp_sleep_enable_ext1_wakeup((1UL << BOARD_BOOT_PIN), ESP_EXT1_WAKEUP_ANY_LOW);   // Hibernate using user keys
-    esp_deep_sleep_start();
+    ui_system_sleep();
 
     // back 
     scr_back_btn_create(parent, "Sleep", scr8_btn_event_cb);
@@ -2756,6 +2671,69 @@ static scr_lifecycle_t screen11 = {
     .entry = entry11,
     .exit  = exit11,
     .destroy = destroy11,
+};
+#endif
+//************************************[ screen 12 ]****************************************** Motor
+#if 1
+static lv_obj_t * motor_label;
+static lv_timer_t *motor_timer = NULL;
+
+static void scr12_btn_event_cb(lv_event_t * e)
+{
+    if(e->code == LV_EVENT_CLICKED){
+        scr_mgr_pop(false);
+    }
+}
+
+void motor_timer_cb(lv_timer_t *t)
+{
+    static int idx = 1;
+    
+    lv_label_set_text_fmt(motor_label, "DRV2605  Waveform Library Effects List see datasheet part 11.2 \n"
+                            "Effects : %d\n", idx);
+    lv_obj_center(motor_label);
+
+    ui_motor_loop(idx++);
+
+    if(idx > 123) {
+        idx = 0;
+    }
+}
+
+static void create12(lv_obj_t *parent)
+{
+    motor_label = lv_label_create(parent);
+    lv_obj_set_width(motor_label, lv_pct(95));
+    lv_obj_set_style_text_font(motor_label, FONT_BOLD_SIZE_15, LV_PART_MAIN);
+    lv_label_set_long_mode(motor_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(motor_label, "DRV2605  Waveform Library Effects List see datasheet part 11.2 \n"
+                            "Effects : 0");
+    lv_obj_center(motor_label);
+
+    motor_timer = lv_timer_create(motor_timer_cb, 2000, NULL);
+    // back 
+    scr_back_btn_create(parent, "Motor", scr8_btn_event_cb);
+}
+static void entry12(void) 
+{
+    ui_disp_full_refr();
+}
+static void exit12(void) {
+    ui_disp_full_refr();
+}
+static void destroy12(void) {
+    if(motor_timer) {
+        lv_timer_del(motor_timer);
+        motor_timer = NULL;
+    }
+    ui_motor_stop();
+}
+
+static scr_lifecycle_t screen12 = {
+    .create = create12,
+    .entry = entry12,
+    .exit  = exit12,
+    .destroy = destroy12,
 };
 #endif
 //************************************[ UI ENTRY ]******************************************
@@ -2906,10 +2884,10 @@ void ui_deckpro_entry(void)
     scr_mgr_register(SCREEN8_1_ID,  &screen8_1);    //  - Call test
     scr_mgr_register(SCREEN8_2_ID,  &screen8_2);    //  - AT test
     scr_mgr_register(SCREEN9_ID,    &screen9);      // Shutdown
-    scr_mgr_register(SCREEN10_ID,   &screen10);     // PCM5102
-    scr_mgr_register(SCREEN11_ID,   &screen11);
+    scr_mgr_register(SCREEN10_ID,   &screen10);     // Music
+    scr_mgr_register(SCREEN11_ID,   &screen11);     // Sleep
+    scr_mgr_register(SCREEN12_ID,   &screen12);     // Motor
     
-
     scr_mgr_switch(SCREEN0_ID, false); // set root screen
     scr_mgr_set_anim(LV_SCR_LOAD_ANIM_OVER_LEFT, LV_SCR_LOAD_ANIM_OVER_LEFT, LV_SCR_LOAD_ANIM_OVER_LEFT);
 

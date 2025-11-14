@@ -25,7 +25,7 @@ jobs:
           - examples/Elink_paper/touch
           - examples/ES8311/playFormSD
           - examples/ES8311/playWAV
-          # - examples/factory
+          - examples/factory
           - examples/keypad
           - examples/LoRa_sx1262/lora_recv
           - examples/LoRa_sx1262/lora_send
@@ -37,6 +37,7 @@ jobs:
           - examples/test_GPS
           - examples/test_wifi
           - examples/tf_card
+          - examples/WireScan
           - examples/XL9555/read
           - examples/XL9555/write
 

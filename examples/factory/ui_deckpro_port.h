@@ -40,6 +40,32 @@ extern "C" {
  * *******************************************************************************/
 void ui_disp_full_refr(void);
 
+// xl9555_io :
+// BOARD_XL9555_00_6609_EN   
+// BOARD_XL9555_01_LORA_EN   
+// BOARD_XL9555_02_GPS_EN    
+// BOARD_XL9555_03_1V8_EN    
+// BOARD_XL9555_05_MOTOR_EN  
+// BOARD_XL9555_10_PWEKEY_EN 
+void ui_xl9555_power_on(int io);
+void ui_xl9555_power_off(int io);
+
+// Increase the volume of the speaker
+// HIGH: Enable power amplifier
+void ui_xl9555_amplifier(bool en);
+
+/* LORA_SEL determines whether to use the internal antenna 
+/  or the external antenna; Connected to XL9555 IO04
+/   HIGH --- external antenna
+/   LOW --- internal antenna  */
+void ui_xl9555_lora_antenna_sel(bool ante);
+
+/* Module A7682E and ES8311 share the output for headphones and speakers.
+/  Select the audio output through AUDIO_SEL. When AUDIO_SEL is
+/  HIGH : the headphones and speakers output the sound from A7682E.
+/  LOW :  the headphones and speakers output the sound from ES8311. */
+void ui_xl9555_audio_sel(bool sel);
+
 // [ screen 1 ] --- lora
 float ui_lora_get_freq(void);
 void ui_lora_set_freq(float freq);
@@ -64,7 +90,6 @@ void ui_setting_set_lora_status(bool on);
 void ui_setting_set_gyro_status(bool on);
 void ui_setting_set_a7682_status(bool on);
 
-int ui_setting_get_language(void);
 bool ui_setting_get_keypad_light(void);
 bool ui_setting_get_motor_status(void);
 bool ui_setting_get_gps_status(void);  
@@ -128,7 +153,6 @@ const char * ui_battert_27220_get_percent_level(void);
 int ui_input_get_touch_coord(int *x, int *y);
 int ui_input_get_keypay_val(char *v);
 void ui_input_set_keypay_flag(void);
-int ui_other_get_LTR(int *ch0, int *ch1, int *ps);
 int ui_other_get_gyro(float *gyro_x, float *gyro_y, float *gyro_z);
 
 // [ screen 8 ] --- A7682E
@@ -144,6 +168,13 @@ void ui_shutdown_on(void);
 // [ screen 10 ] --- A7682E
 bool ui_pcm5102_cb(const char *at_cmd);void ui_pcm5102_stop(void);
 void ui_pcm5102_stop(void);
+
+// [ screen 12 ] --- Motor
+void ui_motor_loop(int i);
+void ui_motor_stop(void);
+
+//
+void ui_system_sleep(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

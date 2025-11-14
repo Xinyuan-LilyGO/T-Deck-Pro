@@ -32,6 +32,13 @@ void ui_disp_full_refr(void)
     disp_full_refr();
 }
 //************************************[ screen 0 ]****************************************** menu
+
+void ui_xl9555_power_on(uint8_t io)      { xl9555_io.digitalWrite(io, HIGH); }
+void ui_xl9555_power_off(uint8_t io)     { xl9555_io.digitalWrite(io, LOW); }
+void ui_xl9555_amplifier(bool en)           { xl9555_io.digitalWrite(BOARD_XL9555_06_AMPLIFIER, en); }
+void ui_xl9555_lora_antenna_sel(bool ante)  { xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, ante); }
+void ui_xl9555_audio_sel(bool sel)          { xl9555_io.digitalWrite(BOARD_XL9555_12_AUDIO_SEL, sel); }
+
 //************************************[ screen 1 ]****************************************** lora
 
 static float lora_default_freq = 850.0;
@@ -84,45 +91,40 @@ void ui_setting_set_language(int language)
 }
 void ui_setting_set_keypad_light(bool on)
 {
-    digitalWrite(BOARD_KEYBOARD_LED, on);
-    default_keypad_light = on;
+    // digitalWrite(BOARD_KEYBOARD_LED, on);
+    // default_keypad_light = on;
 }
 void ui_setting_set_motor_status(bool on)
 {
-    digitalWrite(BOARD_MOTOR_PIN, on);
-    default_motor_status = on;
+    // digitalWrite(BOARD_MOTOR_PIN, on);
+    // default_motor_status = on;
 }
 void ui_setting_set_gps_status(bool on)
 {
     // enable GPS module power
-    digitalWrite(BOARD_GPS_EN, on);
-    default_gps_status = on;
+    // digitalWrite(BOARD_GPS_EN, on);
+    // default_gps_status = on;
 }
 void ui_setting_set_lora_status(bool on)
 {
     // enable LORA module power
-    digitalWrite(BOARD_LORA_EN, on);
-    default_lora_status = on;
+    // digitalWrite(BOARD_LORA_EN, on);
+    // default_lora_status = on;
 }
 void ui_setting_set_gyro_status(bool on)
 {
     // enable gyroscope module power
-    digitalWrite(BOARD_1V8_EN, on);
-    default_gyro_status = on;
+    // digitalWrite(BOARD_1V8_EN, on);
+    // default_gyro_status = on;
 }
 void ui_setting_set_a7682_status(bool on)
 {
     // enable 7682 module power
-    digitalWrite(BOARD_6609_EN, on);
-    digitalWrite(BOARD_A7682E_PWRKEY, on);
-    default_a7682_status = on;
+    // digitalWrite(BOARD_6609_EN, on);
+    // digitalWrite(BOARD_A7682E_PWRKEY, on);
+    // default_a7682_status = on;
 }
 
-// get function
-int ui_setting_get_language(void)
-{
-    return default_language;
-}
 bool ui_setting_get_keypad_light(void)
 {
     return default_keypad_light;
@@ -248,18 +250,14 @@ bool ui_test_a7682e(void)
 }
 bool ui_test_pcm5102a(void)
 {
-    return peri_init_st[E_PERI_PCM5102A];
+    return peri_init_st[E_PERI_ES8311];
 }
 
 //************************************[ screen 6 ]****************************************** Battery
 #if 1
 
 // BQ25896
-bool ui_battery_25896_is_vbus_in(void)
-{
-    return PPM.isVbusIn();
-}
-
+bool ui_battery_25896_is_vbus_in(void) { return PPM.isVbusIn(); }
 bool ui_batt_25896_is_chg(void)
 {
     if(PPM.isCharging() == false) {
@@ -267,71 +265,35 @@ bool ui_batt_25896_is_chg(void)
     } else {
         return true;
     }
-    // return true;
 }
-float ui_batt_25896_get_vbus(void)
-{
-    return (PPM.getVbusVoltage() *1.0 / 1000.0 );
-    // return 4.5;
-}
-float ui_batt_25896_get_vsys(void)
-{
-    return (PPM.getSystemVoltage() * 1.0 / 1000.0);
-    // return 4.5;
-}
-float ui_batt_25896_get_vbat(void)
-{
-    return (PPM.getBattVoltage() * 1.0 / 1000.0);
-    // return 4.5;
-}
-float ui_batt_25896_get_volt_targ(void)
-{
-    return (PPM.getChargeTargetVoltage() * 1.0 / 1000.0);
-    // return 4.5; 
-}
-float ui_batt_25896_get_chg_curr(void)
-{
-    return (PPM.getChargeCurrent());
-    // return 4.5;
-}
-float ui_batt_25896_get_pre_curr(void)
-{
-    return (PPM.getPrechargeCurr());;
-    // return 4.5;
-}
-const char * ui_batt_25896_get_chg_st(void)
-{
-    return PPM.getChargeStatusString();
-    // return "hello";
-}
-const char * ui_batt_25896_get_vbus_st(void)
-{
-    return PPM.getBusStatusString();
-    // return "hello";
-}
-const char * ui_batt_25896_get_ntc_st(void)
-{
-    return PPM.getNTCStatusString();
-    // return "hello";
-}
+float ui_batt_25896_get_vbus(void)           { return (PPM.getVbusVoltage() *1.0 / 1000.0 ); }
+float ui_batt_25896_get_vsys(void)           { return (PPM.getSystemVoltage() * 1.0 / 1000.0); }
+float ui_batt_25896_get_vbat(void)           { return (PPM.getBattVoltage() * 1.0 / 1000.0); }
+float ui_batt_25896_get_volt_targ(void)      { return (PPM.getChargeTargetVoltage() * 1.0 / 1000.0); }
+float ui_batt_25896_get_chg_curr(void)       { return (PPM.getChargeCurrent()); }
+float ui_batt_25896_get_pre_curr(void)       { return (PPM.getPrechargeCurr()); }
+const char * ui_batt_25896_get_chg_st(void)  { return PPM.getChargeStatusString(); }
+const char * ui_batt_25896_get_vbus_st(void) { return PPM.getBusStatusString(); }
+const char * ui_batt_25896_get_ntc_st(void)  { return PPM.getNTCStatusString(); }
+
 /* 27220 */
-bool ui_battery_27220_is_vaild(void) {return peri_init_st[E_PERI_BQ27220]; }
-bool ui_battery_27220_get_input(void) { return bq27220.getIsCharging();}
-bool ui_battery_27220_get_charge_finish(void) { return bq27220.getCharingFinish();}
+bool ui_battery_27220_is_vaild(void)            {return peri_init_st[E_PERI_BQ27220]; }
+bool ui_battery_27220_get_input(void)           { return bq27220.getIsCharging();}
+bool ui_battery_27220_get_charge_finish(void)   { return bq27220.getCharingFinish();}
 uint16_t ui_battery_27220_get_status(void) 
 {
     BQ27220BatteryStatus batt;
     bq27220.getBatteryStatus(&batt);
     return batt.full;
 }
-uint16_t ui_battery_27220_get_voltage(void) { return bq27220.getVoltage(); }
-int16_t ui_battery_27220_get_current(void) { return bq27220.getCurrent(); }
-uint16_t ui_battery_27220_get_temperature(void) { return bq27220.getTemperature(); }
-uint16_t ui_battery_27220_get_full_capacity(void) { return bq27220.getFullChargeCapacity(); }
+uint16_t ui_battery_27220_get_voltage(void)         { return bq27220.getVoltage(); }
+int16_t ui_battery_27220_get_current(void)          { return bq27220.getCurrent(); }
+uint16_t ui_battery_27220_get_temperature(void)     { return bq27220.getTemperature(); }
+uint16_t ui_battery_27220_get_full_capacity(void)   { return bq27220.getFullChargeCapacity(); }
 uint16_t ui_battery_27220_get_design_capacity(void) { return bq27220.getDesignCapacity(); }
 uint16_t ui_battery_27220_get_remain_capacity(void) { return bq27220.getRemainingCapacity(); }
-uint16_t ui_battery_27220_get_percent(void) { return bq27220.getStateOfCharge(); }
-uint16_t ui_battery_27220_get_health(void) { return bq27220.getStateOfHealth(); }
+uint16_t ui_battery_27220_get_percent(void)         { return bq27220.getStateOfCharge(); }
+uint16_t ui_battery_27220_get_health(void)          { return bq27220.getStateOfHealth(); }
 const char * ui_battert_27220_get_percent_level(void)
 {
     int percent = bq27220.getStateOfCharge();
@@ -363,25 +325,6 @@ int ui_input_get_keypay_val(char *v)
 void ui_input_set_keypay_flag(void)
 {
     keypad_set_flag();
-}
-
-int ui_other_get_LTR(int *ch0, int *ch1, int *ps)
-{
-    // if(ch0 != NULL) *ch0 = lv_rand(0, LCD_VER_SIZE);
-    // if(ch1 != NULL) *ch1 = lv_rand(0, LCD_VER_SIZE);
-    // if(ps  != NULL) *ps  = lv_rand(0, LCD_VER_SIZE);
-
-    if((ch0 != NULL) && (ch1 != NULL) && (ps != NULL))
-    {
-        *ch0 = LTR_553ALS_get_channel(0);
-        *ch1 = LTR_553ALS_get_channel(1);
-        *ps  = LTR_553ALS_get_ps();
-    }
-    else
-    {
-        Serial.printf("[%d] %s : Argument cannot be empty", __LINE__, __FILE__);
-    }
-    return 1;
 }
 
 int ui_other_get_gyro(float *gyro_x, float *gyro_y, float *gyro_z)
@@ -450,15 +393,16 @@ void ui_shutdown_on(void)
 }
 
 //************************************[ screen 10 ]****************************************** PCM5102
+
+#include "wav_hex.h"
 bool ui_pcm5102_cb(const char *at_cmd)
 {
-    audio.connecttoFS(SPIFFS, "/iphone_call.mp3");
+    codec.playWAV((uint8_t*)wav_hex, wav_hex_len);
     return true;
 }
 
 void ui_pcm5102_stop(void)
 {
-    audio.stopSong();
 }
 
 // optional
@@ -489,3 +433,125 @@ void audio_info(const char *info){
 // void audio_lasthost(const char *info){  //stream URL played
 //     Serial.print("lasthost    ");Serial.println(info);
 // }
+
+//************************************[ screen 12 ]****************************************** Motor
+void ui_motor_loop(int i)
+{
+    if(i > 1 && i < 123) {
+        // set the effect to play
+        motor_drv.setWaveform(0, i);  // play effect 
+        motor_drv.setWaveform(1, 0);       // end waveform
+
+        // play the effect!
+        motor_drv.go();
+    }
+}
+
+void ui_motor_stop(void)
+{
+    motor_drv.stop();
+}
+
+void ui_system_sleep(void)
+{
+    extern TouchDrvCSTXXX touch;
+    extern ExtensionIOXL9555 xl9555_io;
+    touch.sleep();
+
+    const uint8_t expands[] = {
+        BOARD_XL9555_00_6609_EN,
+        BOARD_XL9555_01_LORA_EN,
+        BOARD_XL9555_02_GPS_EN,
+        BOARD_XL9555_03_1V8_EN,
+        // BOARD_XL9555_04_LORA_SEL,
+        BOARD_XL9555_05_MOTOR_EN,
+        BOARD_XL9555_06_AMPLIFIER,
+        BOARD_XL9555_07_TOUCH_RST,
+        BOARD_XL9555_10_PWEKEY_EN,
+        BOARD_XL9555_11_KEY_RST,
+        BOARD_XL9555_12_AUDIO_SEL,
+    };
+    for (auto pin : expands) {
+        xl9555_io.digitalWrite(pin, LOW);
+        delay(1);
+    }
+
+    const uint8_t pins[] = {
+        BOARD_KEYBOARD_INT,
+        BOARD_KEYBOARD_LED,
+
+        BOARD_TOUCH_INT,
+
+        BOARD_GYROSCOPDE_INT,
+
+        BOARD_ES8311_MCLK,
+        BOARD_ES8311_SCLK,
+        BOARD_ES8311_ASDOUT,
+        BOARD_ES8311_LRCK,
+        BOARD_ES8311_DSDIN,
+
+        BOARD_EPD_BL,
+        BOARD_EPD_DC,
+        BOARD_EPD_CS,
+        BOARD_EPD_BUSY,
+        BOARD_EPD_RST,
+
+        BOARD_SD_CS,
+
+        BOARD_LORA_CS,
+        BOARD_LORA_BUSY,
+        BOARD_LORA_RST,
+        BOARD_LORA_INT,
+
+        BOARD_GPS_RXD,
+        BOARD_GPS_TXD,
+        BOARD_GPS_PPS,
+
+        BOARD_A7682E_RI,
+        BOARD_A7682E_ITR,
+        BOARD_A7682E_RXD,
+        BOARD_A7682E_TXD,
+
+        BOARD_BOOT_PIN,
+
+        BOARD_I2C_SCL,
+        BOARD_I2C_SDA,
+
+        BOARD_SPI_SCK,
+        BOARD_SPI_MOSI,
+        BOARD_SPI_MISO,
+    };
+
+    for (auto pin : pins) {
+        log_d("Set pin %d to open drain\n", pin);
+        gpio_reset_pin((gpio_num_t )pin);
+        pinMode(pin, OPEN_DRAIN);
+    }
+
+    lora_sleep();
+
+    SerialMon.end();
+    SerialAT.end();
+    SerialGPS.end();
+
+    Serial1.end();
+
+    SPI.end();
+
+    Wire.end();
+    
+    // gpio_reset_pin((gpio_num_t)BOARD_GPS_PPS);
+    // gpio_reset_pin((gpio_num_t)BOARD_GPS_RXD);
+    // gpio_reset_pin((gpio_num_t)BOARD_GPS_TXD);
+    // gpio_reset_pin((gpio_num_t)BOARD_LORA_RST);
+    // gpio_reset_pin((gpio_num_t)BOARD_TOUCH_RST);
+    // gpio_reset_pin((gpio_num_t)BOARD_LORA_BUSY);
+
+    // digitalWrite(BOARD_A7682E_PWRKEY, LOW);
+    // gpio_hold_en((gpio_num_t)BOARD_A7682E_PWRKEY);
+    // gpio_deep_sleep_hold_en();
+
+    // esp_sleep_enable_ext0_wakeup((gpio_num_t)ENCODER_KEY, 0);                            
+    esp_sleep_enable_ext1_wakeup((1UL << BOARD_BOOT_PIN), ESP_EXT1_WAKEUP_ANY_LOW);   // Hibernate using user keys
+    esp_deep_sleep_start();
+}
