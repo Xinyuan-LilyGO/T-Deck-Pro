@@ -24,6 +24,22 @@ The differences in hardware can be viewed in the corresponding `readme` and `sch
 |   T-Deck-Pro V1.1   |   [HD-V2-250915](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V2-250915?tab=readme-ov-file#t-deck-pro-v11)   | [readme](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V2-250915?tab=readme-ov-file#zero-version-) |     [SCH](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V2-250915/hardware/T-Deckpro%20v1.1%2025-09-15)      | [V2](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V2-250915/firmware) |   Available   |
 | T-Deck-Pro MAX V1.0 | [HD-V3-250911](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V3-250911?tab=readme-ov-file#t-deck-pro-max-v01) | [readme](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V3-250911?tab=readme-ov-file#zero-version-) | [SCH](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V3-250911/hardware/T-Deck%20Pro%20Max%20V0.1%2025-09-11) | [V3](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/HD-V3-250911/firmware) | Not Available |
 
+🟢🟢🟢
+
+How to distinguish between different versions of T-Deck-Pro;
+
+Different versions can be distinguished by using the I2C function of the detection equipment.
+
+|        name         | DRV2605 （0x5A） | XL9555 (0x20) |
+| :-----------------: | :------------: | :-----------: |
+|   T-Deck-Pro V1.0   |       ❌        |       ❌       |
+|   T-Deck-Pro V1.1   |       ✅        |       ❌       |
+| T-Deck-Pro MAX V0.1 |       ✅        |       ✅       |
+
+Download the [WireScan](./firmware/examples/WireScan.bin) firmware and then open the serial port to confirm.
+
+How to download the firmware? - [click me](./firmware/)
+
 ### 1、Version
 
 The T-Deck-Pro comes in two versions, one with the audio module PCM512A and one with the 4G module A7682E
@@ -52,9 +68,36 @@ As shown in the figure below, the annotated modules of the two versions are diff
 |      Touch       |         CST328 (0x1A)          |
 |    Gyroscope     |        BHI260AP (0x28)         |
 |     Keyboard     |         TCA8418 (0x34)         |
-|   Light sensor   |🔴 (Obsolete) LTR_553ALS (0x23)|
 
-A7682E https://en.simcom.com/product/A7682E.html
+🟢🟢🟢
+
+Other projects related to T-Deck-Pro
+
+### 1. meshtastic
+
+The T-Deck-Pro supports Meshtastic and provides the Meshtastic firmware in [firmware/meshtastic](./firmware/meshtastic/).
+
+Firmware that has been tested:
+~~~
+T-Deck-Pro V1.0  <---  firmware-t-deck-pro-2.7.10.94d4bdf.bin 
+T-Deck-Pro V1.1  <---  firmware-t-deck-pro-2.7.13.597fa0b.bin
+~~~
+How to download the firmware? - [click me](./firmware/)
+
+Regarding the `video` of T-Deck-Pro V1.x : [Running Meshtastic on LILYGO T-Deck Pro](https://www.youtube.com/watch?v=qfrOp8PxDvA)
+
+More information about Meshtastic reference：
+[github](https://github.com/meshtastic/firmware) 、
+[Meshtastic flasher](https://flasher.meshtastic.org/)
+
+### 2. bb_epaper
+
+A frustration-free e-paper library suitable for Arduino, Linux, or random embedded systems with no OS.
+
+The author has added support for `T-Deck-Pro V1.0`.
+
+More information about Meshtastic reference：
+[github](https://github.com/bitbank2/bb_epaper)
 
 ## :two: Module 🎁
 
@@ -75,6 +118,8 @@ esphome/ESP32-audioI2S#v3.0.12
 ~~~
 
 ### 1. A7682E
+
+A7682E https://en.simcom.com/product/A7682E.html
 
 Test the functionality of the A7682E using [`examples/A7682E/test_AT`](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/master/examples/A7682E/test_AT)
 

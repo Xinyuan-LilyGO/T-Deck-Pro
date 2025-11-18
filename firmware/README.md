@@ -31,6 +31,8 @@ How to use the official software download program;
 
 - :three: Finally, release the BOOT key
 
+![alt text](../docs/README_img/image.png)
+
 3、Open the `Flash Download Tools` tool and select from the following figure;
 
 ![alt text](../docs/image.png)
