@@ -26,9 +26,12 @@
 
 ### 1、Version
 
-How to confirm that your device is `T-Deck-Pro MAX V0.1`? Download the [WireScan](./firmware/examples/WireScan.bin) firmware for detection.
+How to confirm that your device is `T-Deck-Pro MAX V0.1`?
 
-How to [download the firmware?](./firmware/)
+Download the [WireScan](./firmware/examples/WireScan.bin) firmware and then open the serial port to confirm.
+
+How to download the firmware? - [click me](./firmware/)
+
 
 ### 2、Where to buy.
 
@@ -75,9 +78,11 @@ esphome/ESP32-audioI2S#v3.0.12
 
 ### 1. A7682E
 
-Test the functionality of the A7682E using [`examples/A7682E/test_AT`](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/master/examples/A7682E/test_AT)
-
 A7682E is the LTE Cat 1 module that supports wirelesscommunication modes of LTE-FDD/GSM/GPRS/EDGE.   It supports maximum 10Mbps downlink rate and 5Mbps uplink rate. A7682E supports multiple built-in network protocols.
+
+Insert the SIM card and it supports calls, text messages and internet access.
+
+Test the functionality of the A7682E using [`examples/A7682E/test_AT`](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/master/examples/A7682E/test_AT)
 
 Control Via AT Commands
 ~~~
@@ -94,6 +99,22 @@ network protocols (TCP/IP/IPV4/IPV6/Multi-PDP/FTP/FTPS/HTTP/HTTPS/DNS)
 RNDIS/PPP/ECM
 SSL
 ~~~
+❗ Note: The speakers of A7682E and ES8311 are shared. Set `IO12` of `XL9555` to `HIGH` and output the audio of A7682E.
+The sound is too weak. Set `IO06` of the `XL9555` to `HIGH` to enable the power amplifier. [example](./examples/A7682E/test_AT/test_AT.ino)
+
+### 2. ES8311
+
+❗ Note: The speakers of A7682E and ES8311 are shared. Set `IO12` of `XL9555` to `LOW` and output the audio of ES8311.
+The sound is too weak. Set `IO06` of the `XL9555` to `HIGH` to enable the power amplifier.
+
+### 3. LoRa
+
+
+
+❗ Note:
+| When using an external antenna, LoRa operates as shown in the following diagram;<br><br>It is necessary to set `IO04` of `XL9555` to `HIGH`. <br><br>When `IO04` of `XL9555` is at `LOW` level, the internal antenna (the default mode) is used. |
+| :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![alt text](./docs/README_img/image-1.png) |
 
 ## :three: Quick Start 🎁
 
@@ -284,9 +305,6 @@ Sleep power consumption.
 
 ## :six: FAQ 🎁
 
-Q:The screen display has timed out. Even after downloading the factory firmware, the screen still cannot display. Disconnect the battery, wait for about 10 seconds, and then reconnect. Does this solve the problem?
-
-A:This might be due to the `rst` pin of the screen not being connected to the hardware, which causes the screen to fail to reset. You can try downloading [firmware/H693_factory_xxxxx_fix.bin](./firmware/) to solve this problem.
 
 
 ## :seven: Schematic & 3D 🎁
@@ -296,6 +314,3 @@ For more information, see the `./hardware` directory.
 
 
 ----
-
-
-
