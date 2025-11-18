@@ -24,12 +24,14 @@ How to use the official software download program;
 
 1、Download the `Flash Download Tools` , [Flash Download Tools](https://dl.espressif.com/public/flash_download_tool.zip);
 
-2、Plug in USB. Enters download mode;
-- :one: Hold down the BOOT key of the device without releasing it
+2、Plug in USB. To enter DFU mode:
+- :one: Locate the rocker button on the right side of the device. The top half is BOOT, the bottom half is RST.
 
-- :two: Click the RST button on the back and release
+- :two: Hold down the BOOT button without releasing it
 
-- :three: Finally, release the BOOT key
+- :three: Click the RST button on the back and release
+
+- :four: Finally, release the BOOT button
 
 ![alt text](../docs/README_img/image.png)
 
@@ -40,5 +42,26 @@ How to use the official software download program;
 4、Select the program you want to download and click `Start` key to download it as shown in the image below;
 
 ![alt text](../docs/image-2.png)
+
+- :one: Click `...` and locate the *.bin firmware file you wish to load
+
+- :two: Enter `0` in this box
+
+- :three: Select 115200 BAUD and the correct COM port for your device
+  - hint: if you are unsure, switch to the ChipInfoDump tab and click `Chip Info`. When you have the right port, you'll see something like the following:
+```
+start detect chip...please wait
+chip sync ...
+Chip is ESP32-S3 (QFN56) (revision v0.2)
+Features: Wi-Fi, BT 5 (LE), Dual Core + LP Core, 240MHz
+Crystal is 40MHz
+MAC: 2837ffffffff
+Manufacturer: ef
+Device: 6018
+Status value: 0x600200
+Detected flash size: 16MB
+```
+
+- :four: Finally, press the start button and wait patiently until the load and verification process is complete.
 
 5、When the download is complete, click the `RST` button to restart the device;
