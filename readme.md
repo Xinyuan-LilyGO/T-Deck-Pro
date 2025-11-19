@@ -84,13 +84,24 @@ T-Deck-Pro V1.1  <---  firmware-t-deck-pro-2.7.13.597fa0b.bin
 ~~~
 How to download the firmware? - [click me](./firmware/)
 
-Regarding the `video` of T-Deck-Pro V1.x : [Running Meshtastic on LILYGO T-Deck Pro](https://www.youtube.com/watch?v=qfrOp8PxDvA)
+Regarding the video of `T-Deck-Pro V1.x` : [Running Meshtastic on LILYGO T-Deck Pro](https://www.youtube.com/watch?v=qfrOp8PxDvA)
 
 More information about Meshtastic reference：
 [github](https://github.com/meshtastic/firmware) 、
 [Meshtastic flasher](https://flasher.meshtastic.org/)
 
-### 2. bb_epaper
+
+### 2. Launcher
+
+Application Launcher for M5Stack, Lilygo, CYDs, Marauder and ESP32 devices.
+
+It seems that the T-Deck-Pro device has already been supported.
+
+reference：
+[github](https://github.com/bmorcelli/Launcher)、
+[Launcher](https://bmorcelli.github.io/Launcher/)
+
+### 3. bb_epaper
 
 A frustration-free e-paper library suitable for Arduino, Linux, or random embedded systems with no OS.
 
