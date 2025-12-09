@@ -78,7 +78,7 @@ void keypad_loop(void)
         state = KEYPAD_PRESS;
     }
 
-    if(state != -1){
+    if(state == KEYPAD_PRESS){
         row = k / KEYPAD_COLS;
         col = (KEYPAD_COLS-1) - k % KEYPAD_COLS;
         c = keymap[row][col];
