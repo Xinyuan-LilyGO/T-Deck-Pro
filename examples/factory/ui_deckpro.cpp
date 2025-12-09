@@ -1961,9 +1961,9 @@ static scr_lifecycle_t screen6_2 = {
 static lv_obj_t *scr7_cont;
 static lv_obj_t *input_touch;
 static lv_obj_t *input_keypad;
-static lv_obj_t *light_sensor;
 static lv_obj_t *gyroscope;
 static lv_timer_t *input_timer;
+static String keypad_str = "Keypad: \n";
 
 static void scr7_btn_event_cb(lv_event_t * e)
 {
@@ -1975,34 +1975,33 @@ static void scr7_btn_event_cb(lv_event_t * e)
 static void input_timer_event(lv_timer_t *t)
 {
     int touch_x, touch_y;
+    static int sec = 0;
+    float gyro_x, gyro_y, gyro_z;
+    char keypay_v;
 
     int ret = ui_input_get_touch_coord(&touch_x, &touch_y);
 
     if(ret > 0)
     {
         lv_label_set_text_fmt(input_touch,  "Touch: x: %03d | y: %03d", touch_x, touch_y);
+
+        sec = 0;
     }
 
-    char keypay_v;
     ret = ui_input_get_keypay_val(&keypay_v);
     if(ret > 0)
     {
         ui_input_set_keypay_flag();
-        lv_label_set_text_fmt(input_keypad, "Keypad: %c", keypay_v);
+        keypad_str = keypad_str + String(keypay_v);
+        lv_label_set_text_fmt(input_keypad, "%s", keypad_str.c_str());
+
+        sec = 0;
     }
 
-    static int sec = 0;
-    int ch0, ch1 ,ps;
-    float gyro_x, gyro_y, gyro_z;
-
     sec++;
-    if(sec > 20) // 2s
+    if(sec > 60) // 2s
     {
         sec = 0;
-        ui_other_get_LTR(&ch0, &ch1, &ps);
-        lv_label_set_text_fmt(light_sensor, "   c0: %d\n"
-                                            "   c1: %d\n"
-                                            "   ps: %d", ch0, ch1 ,ps);
 
         ui_other_get_gyro(&gyro_x, &gyro_y, &gyro_z);
         lv_label_set_text_fmt(gyroscope,    "   gyros_x: %.3f\n"
@@ -2044,21 +2043,6 @@ static void create7(lv_obj_t *parent)
     lv_label_set_long_mode(input_keypad, LV_LABEL_LONG_WRAP);
     lv_label_set_text_fmt(input_keypad, "Keypad: ");
 
-    lv_obj_t *lab1 = lv_label_create(scr7_cont);
-    lv_obj_set_style_text_font(lab1, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);
-    lv_label_set_text(lab1, "light sensor");
-
-    light_sensor = lv_label_create(scr7_cont);
-    // lv_obj_set_height(input_keypad, 100);
-    lv_obj_set_width(light_sensor, lv_pct(95));
-    lv_obj_set_style_pad_all(light_sensor, 0, LV_PART_MAIN);
-    lv_obj_set_style_text_font(light_sensor, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);
-    // lv_obj_set_style_border_width(light_sensor, 1, LV_PART_MAIN);
-    lv_label_set_long_mode(light_sensor, LV_LABEL_LONG_WRAP);
-    lv_label_set_text_fmt(light_sensor, "   c0: 000\n"
-                                        "   c1: 000\n"
-                                        "   ps: 000");
-
     lv_obj_t *lab2 = lv_label_create(scr7_cont);
     lv_obj_set_style_text_font(lab2, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);
     lv_label_set_text(lab2, "gyroscope");
@@ -2078,8 +2062,9 @@ static void create7(lv_obj_t *parent)
 }
 static void entry7(void) 
 {
+    keypad_str = "Keypad: \n";
     ui_disp_full_refr();
-    input_timer = lv_timer_create(input_timer_event, 100, NULL);
+    input_timer = lv_timer_create(input_timer_event, 50, NULL);
 }
 static void exit7(void) {
     if(input_timer)
