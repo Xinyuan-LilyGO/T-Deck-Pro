@@ -1,0 +1,22 @@
+menu "Example Configuration"
+    config EXAMPLE_TOUCH_I2C_SDA_PIN
+        int "Touch I2C sda pin"
+        default 13
+        range -1 56
+
+    config EXAMPLE_TOUCH_I2C_SCL_PIN
+        int "Touch I2C scl pin"
+        default 14
+        range -1 56
+
+    config EXAMPLE_TOUCH_RST_PIN
+        int "Touch I2C reset pin"
+        default 38
+        range -1 56
+
+    config EXAMPLE_TOUCH_INT_PIN
+        int "Touch I2C interruption pin"
+        default 12
+        range -1 56
+
+endmenu
