@@ -119,6 +119,7 @@ static struct menu_btn menu_btn_list[] =
     {SCREEN9_ID,  &img_lora,    "Shutdown", 167,    189},
     {SCREEN10_ID, &img_PCM5102, "PCM5102",  23,     13},  // Page two
     {SCREEN11_ID, &img_PCM5102, "Sleep",    95,     13},  // 
+    {SCREEN12_ID, &img_test,    "Editor",   167,    13},
 };
 
 static void menu_btn_event_cb(lv_event_t *e)
@@ -2743,6 +2744,72 @@ static scr_lifecycle_t screen11 = {
     .destroy = destroy11,
 };
 #endif
+
+//************************************[ screen 12 ]****************************************** Editor
+#if 1
+static lv_obj_t *scr12_cont;
+static lv_timer_t *input_timer12;
+static lv_obj_t *input_textbox_label;
+static void input_timer12_event(lv_timer_t *t)
+{
+    char keypay_v;
+    int ret = ui_input_get_keypay_val(&keypay_v);
+    if(ret > 0)
+    {
+        ui_input_set_keypay_flag();
+        lv_label_set_text_fmt(input_textbox_label, "%s", input_textbox);
+    }
+}
+
+static void create12(lv_obj_t *parent)
+{
+    scr12_cont = lv_obj_create(parent);
+    lv_obj_set_size(scr12_cont, lv_pct(100), lv_pct(88));
+    lv_obj_set_style_bg_color(scr12_cont, DECKPRO_COLOR_BG, LV_PART_MAIN);
+    lv_obj_set_scrollbar_mode(scr12_cont, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(scr12_cont, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_border_width(scr12_cont, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(scr12_cont, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(scr12_cont, 13, LV_PART_MAIN);
+    lv_obj_set_flex_flow(scr12_cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(scr12_cont, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_column(scr12_cont, 5, LV_PART_MAIN);
+    lv_obj_set_align(scr12_cont, LV_ALIGN_BOTTOM_MID);
+
+    lv_obj_t *label = lv_label_create(scr12_cont);
+    input_textbox_label = label;
+    lv_obj_set_width(label, lv_pct(95));
+    lv_obj_set_style_pad_all(label, 0, LV_PART_MAIN);
+    lv_obj_set_style_text_font(label, FONT_BOLD_SIZE_15, LV_PART_MAIN);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+    lv_label_set_text_fmt(label, "%s", input_textbox);
+
+    // back
+    scr_back_btn_create(parent, "Editor", scr8_btn_event_cb);
+}
+static void entry12(void)
+{
+    ui_disp_full_refr();
+    input_timer12 = lv_timer_create(input_timer12_event, 10, NULL);
+}
+static void exit12(void) {
+    if(input_timer12)
+    {
+        lv_timer_del(input_timer12);
+        input_timer12 = NULL;
+    }
+    ui_disp_full_refr();
+}
+static void destroy12(void) { }
+
+static scr_lifecycle_t screen12 = {
+    .create = create12,
+    .entry = entry12,
+    .exit  = exit12,
+    .destroy = destroy12,
+};
+#endif
+
 //************************************[ UI ENTRY ]******************************************
 static lv_obj_t *menu_keypad;
 static lv_timer_t *menu_timer = NULL;
@@ -2893,6 +2960,7 @@ void ui_deckpro_entry(void)
     scr_mgr_register(SCREEN9_ID,    &screen9);      // Shutdown
     scr_mgr_register(SCREEN10_ID,   &screen10);     // PCM5102
     scr_mgr_register(SCREEN11_ID,   &screen11);
+    scr_mgr_register(SCREEN12_ID,   &screen12);     // Editor
     
 
     scr_mgr_switch(SCREEN0_ID, false); // set root screen
