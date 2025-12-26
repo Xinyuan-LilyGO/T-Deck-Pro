@@ -63,7 +63,7 @@ As shown in the figure below, the annotated modules of the two versions are diff
 |     Display      |      GDEQ031T10 (320x240)      |
 |    4G-Module     |       A7682E  🟢Optional       |
 |      Audio       |       PCM512A 🟢Optional       |
-| Battery Capacity |          3.7V-1500mAh          |
+| Battery Capacity |        305070 (1400mAh)        |
 |   Battery Chip   | BQ25896 (0x6B), BQ27220 (0x55) |
 |      Touch       |         CST328 (0x1A)          |
 |    Gyroscope     |        BHI260AP (0x28)         |
