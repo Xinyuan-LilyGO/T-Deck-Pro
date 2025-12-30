@@ -191,5 +191,5 @@ int hyn_touch_init(void)
     // hook isr handler for specific gpio pin
     gpio_isr_handler_add((gpio_num_t)hyn_data->plat_data.irq_gpio, gpio_isr_handler, (void *)hyn_data->plat_data.irq_gpio);
 
-    return ret;
+    return !ret;
 }

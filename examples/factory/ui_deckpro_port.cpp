@@ -349,7 +349,9 @@ int ui_input_get_touch_coord(int *x, int *y)
 {
     int16_t last_x = 0;
     int16_t last_y = 0;
-    int ret = touch.getPoint(&last_x, &last_y);
+    // int ret = touch.getPoint(&last_x, &last_y);
+    int ret = hyn_touch_get_point(&last_x, &last_y, 1);
+
     *x = last_x;
     *y = last_y;
     return ret;

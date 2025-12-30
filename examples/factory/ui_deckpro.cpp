@@ -2749,43 +2749,16 @@ static lv_timer_t *menu_timer = NULL;
 
 static void indev_get_gesture_dir(lv_timer_t *t)
 {
-    lv_indev_data_t data;
-    lv_indev_t * indev_pointer = lv_indev_get_next(NULL);
-    lv_coord_t diff_x = 0;
-    lv_coord_t diff_y = 0;
+    lv_indev_t * touch_indev = lv_indev_get_next(NULL);
+    lv_dir_t dir = lv_indev_get_gesture_dir(touch_indev);
 
-    static lv_point_t last_point;
-    static bool is_press = false;
-
-    _lv_indev_read(indev_pointer, &data);
-
-    if(data.state == LV_INDEV_STATE_PR){
-
-        if(is_press == false) {
-            is_press = true;
-            last_point = data.point;
-        }
-
-        diff_x = last_point.x - data.point.x;
-        diff_y = last_point.x - data.point.y;
-
-        if(diff_x > UI_SLIDING_DISTANCE) { // right
-            if(ui_get_gesture_dir) {
-                ui_get_gesture_dir(LV_DIR_LEFT);
-            }
-            last_point.x = 0;
-        } else if(diff_x < -UI_SLIDING_DISTANCE) { // left
-            if(ui_get_gesture_dir) {
-                ui_get_gesture_dir(LV_DIR_RIGHT);
-            }
-            last_point.x = 0;
-        }
-        Serial.printf("x=%d, y=%d\n", data.point.x, data.point.y);
-    }else{
-        is_press = false;
-        last_point.x = 0;
-        last_point.y = 0;
+    if(dir == LV_DIR_RIGHT) { // right
+        ui_get_gesture_dir(LV_DIR_RIGHT);
+    } 
+    else if(dir == LV_DIR_LEFT) { // left
+        ui_get_gesture_dir(LV_DIR_LEFT);
     }
+    // Serial.printf("dir=%d\n", dir);
 }
 
 static void menu_keypay_get_event(lv_timer_t *t)
