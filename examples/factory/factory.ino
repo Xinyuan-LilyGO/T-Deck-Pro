@@ -31,7 +31,7 @@ XPowersPPM PPM;
 BQ27220 bq27220;
 Audio audio;
 
-TouchDrvCSTXXX touch;
+// TouchDrvCSTXXX touch;
 GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_EPD_CS, BOARD_EPD_DC, BOARD_EPD_RST, BOARD_EPD_BUSY)); // GDEQ031T10 240x320, UC8253, (no inking, backside mark KEGMO 3100)
 
 uint8_t *decodebuffer = NULL;
@@ -180,11 +180,12 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
     static lv_coord_t last_x = 0;
     static lv_coord_t last_y = 0;
 
-    uint8_t touched = touch.getPoint(&last_x, &last_y, 1);
+    // uint8_t touched = touch.getPoint(&last_x, &last_y, 1);
+    uint8_t touched = hyn_touch_get_point(&last_x, &last_y, 1);
     if(touched) {
         data->state = LV_INDEV_STATE_PR;
 
-        // Serial.printf("x = %d, y = %d\n", last_x, last_y);
+        Serial.printf("x = %d, y = %d\n", last_x, last_y);
     } else {
         data->state = LV_INDEV_STATE_REL;
     }
@@ -495,10 +496,10 @@ void setup()
     SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI);
 
     // init peripheral
-    touch.setPins(BOARD_TOUCH_RST, BOARD_TOUCH_INT);
+    // touch.setPins(BOARD_TOUCH_RST, BOARD_TOUCH_INT);
     peri_init_st[E_PERI_INK_SCREEN] = ink_screen_init();
     peri_init_st[E_PERI_LORA]       = lora_init();
-    peri_init_st[E_PERI_TOUCH]      = touch.begin(Wire, BOARD_I2C_ADDR_TOUCH, BOARD_TOUCH_SDA, BOARD_TOUCH_SCL);
+    // peri_init_st[E_PERI_TOUCH]      = touch.begin(Wire, BOARD_I2C_ADDR_TOUCH, BOARD_TOUCH_SDA, BOARD_TOUCH_SCL);
     peri_init_st[E_PERI_KYEPAD]     = keypad_init(BOARD_I2C_ADDR_KEYBOARD);
     peri_init_st[E_PERI_BQ25896]    = bq25896_init();
     peri_init_st[E_PERI_BQ27220]    = bq27220_init();
@@ -511,6 +512,8 @@ void setup()
     {
         peri_init_st[E_PERI_PCM5102A] = pcm5102a_init();
     }
+
+    peri_init_st[E_PERI_TOUCH] = hyn_touch_init();
 
     lvgl_init();
 
