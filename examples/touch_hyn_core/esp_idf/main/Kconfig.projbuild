@@ -11,7 +11,7 @@ menu "Example Configuration"
 
     config EXAMPLE_TOUCH_RST_PIN
         int "Touch I2C reset pin"
-        default 38
+        default 45
         range -1 56
 
     config EXAMPLE_TOUCH_INT_PIN

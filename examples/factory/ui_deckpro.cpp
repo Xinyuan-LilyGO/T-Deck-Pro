@@ -2780,7 +2780,7 @@ static void indev_get_gesture_dir(lv_timer_t *t)
             }
             last_point.x = 0;
         }
-        // Serial.printf("x=%d, y=%d\n", data.point.x, data.point.y);
+        Serial.printf("x=%d, y=%d\n", data.point.x, data.point.y);
     }else{
         is_press = false;
         last_point.x = 0;

@@ -157,13 +157,15 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
     static lv_coord_t last_y = 0;
 
     uint8_t touched = touch.getPoint(&last_x, &last_y, 1);
+    // uint8_t touched = hyn_touch_get_point(&last_x, &last_y, 1);
     if(touched) {
         data->state = LV_INDEV_STATE_PR;
 
-        Serial.printf("x = %d, y = %d\n", last_x, last_y);
+        // Serial.printf("x = %d, y = %d\n", last_x, last_y);
     } else {
         data->state = LV_INDEV_STATE_REL;
     }
+    // Serial.printf("touch=%d, x = %d, y = %d\n", touched, last_x, last_y);
     /*Set the last pressed coordinates*/
     data->point.x = last_x;
     data->point.y = last_y;
@@ -501,6 +503,8 @@ void setup()
     {
         peri_init_st[E_PERI_PCM5102A] = pcm5102a_init();
     }
+
+    // peri_init_st[E_PERI_TOUCH] = hyn_touch_init();
 
     lvgl_init();
 
