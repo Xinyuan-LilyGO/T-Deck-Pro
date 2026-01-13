@@ -15,7 +15,7 @@
 
 
 // extern 
-extern TouchDrvCSTXXX touch;
+// extern TouchDrvCSTXXX touch;
 
 
 volatile int default_language = DEFAULT_LANGUAGE_EN;
@@ -311,7 +311,8 @@ int ui_input_get_touch_coord(int *x, int *y)
 {
     int16_t last_x = 0;
     int16_t last_y = 0;
-    int ret = touch.getPoint(&last_x, &last_y);
+    // int ret = touch.getPoint(&last_x, &last_y);
+    int ret = hyn_touch_get_point(&last_x, &last_y, 1);
     *x = last_x;
     *y = last_y;
     return ret;
@@ -454,9 +455,9 @@ void ui_motor_stop(void)
 
 void ui_system_sleep(void)
 {
-    extern TouchDrvCSTXXX touch;
+    // extern TouchDrvCSTXXX touch;
     extern ExtensionIOXL9555 xl9555_io;
-    touch.sleep();
+    // touch.sleep();
 
     const uint8_t expands[] = {
         BOARD_XL9555_00_6609_EN,
