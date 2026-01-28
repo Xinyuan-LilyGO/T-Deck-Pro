@@ -350,8 +350,8 @@ void setup()
             xl9555_io.digitalWrite(pin, HIGH);
             delay(1);
         }
-        // HIGH --- external antenna
-        // LOW --- internal antenna (default)
+        // LOW --- external antenna 
+        // HIGH --- internal antenna (default)
         xl9555_io.pinMode(BOARD_XL9555_04_LORA_SEL, OUTPUT);
         xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW);
 

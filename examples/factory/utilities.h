@@ -39,8 +39,8 @@
 #define BOARD_XL9555_03_1V8_EN      (3)     // HIGH: Enable the BHI260AP power supply
 /* LORA_SEL determines whether to use the internal antenna 
 /  or the external antenna; Connected to XL9555 IO04
-/   HIGH --- external antenna
-/   LOW --- internal antenna  */
+/   HIGH --- internal antenna
+/   LOW --- external antenna  */
 #define BOARD_XL9555_04_LORA_SEL    (4)
 #define BOARD_XL9555_05_MOTOR_EN    (5)     // HIGH: Enable the DRV2605 power supply
 // Connected to XL9555 IO06, enable power amplifier,
