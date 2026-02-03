@@ -19,6 +19,7 @@
 #include "factory.h"
 #include "peripheral.h"
 #include <SensorWireHelper.h>
+// #include "wav_hex.h"
 
 TinyGsm modem(SerialAT);
 TaskHandle_t a7682_handle;
@@ -186,7 +187,8 @@ static bool bq25896_init(void)
         PPM.setChargerConstantCurr(1024);
 
         // Enable measure
-        PPM.enableMeasure();
+        // PPM.enableMeasure();
+        PPM.disableMeasure();
 
         return true;
     }
@@ -315,7 +317,7 @@ void setup()
 
     // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
     // before powering on, all CS signals should be pulled high and in an unselected state;
-    pinMode(BOARD_LORA_CS, OUTPUT); 
+    pinMode(BOARD_LORA_CS, OUTPUT);
     digitalWrite(BOARD_LORA_CS, HIGH);
     pinMode(BOARD_LORA_RST, OUTPUT); 
     digitalWrite(BOARD_LORA_RST, HIGH);
@@ -337,7 +339,7 @@ void setup()
             BOARD_XL9555_01_LORA_EN,
             BOARD_XL9555_02_GPS_EN,
             BOARD_XL9555_03_1V8_EN,
-            // BOARD_XL9555_04_LORA_SEL,
+            BOARD_XL9555_04_LORA_SEL,
             BOARD_XL9555_05_MOTOR_EN,
             BOARD_XL9555_06_AMPLIFIER,
             BOARD_XL9555_07_TOUCH_RST,
@@ -352,8 +354,8 @@ void setup()
         }
         // LOW --- external antenna 
         // HIGH --- internal antenna (default)
-        xl9555_io.pinMode(BOARD_XL9555_04_LORA_SEL, OUTPUT);
-        xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW);
+        // xl9555_io.pinMode(BOARD_XL9555_04_LORA_SEL, OUTPUT);
+        // xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW);
 
         // xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
         // delay(100);
@@ -377,16 +379,19 @@ void setup()
     // init motor
     Serial.printf(" -------------------------- DRV2605 -------------------------- \n");
     if(!motor_drv.begin()) {
-        while (1) {
+        // while (1) {
             Serial.println("Failed to find DRV2605 - Motor drive");
-            delay(1000);
-        }
+            // delay(1000);
+            Serial.println("Failed to find DRV2605 - Motor drive");
+            Serial.println("Failed to find DRV2605 - Motor drive");
+        // }
+    } else {
+        motor_drv.selectLibrary(1);
+        motor_drv.setMode(DRV2605_MODE_INTTRIG);
+        motor_drv.setWaveform(0, 13); // play effect
+        motor_drv.setWaveform(1, 0);      // end waveform
+        motor_drv.go();
     }
-    motor_drv.selectLibrary(1);
-    motor_drv.setMode(DRV2605_MODE_INTTRIG);
-    motor_drv.setWaveform(0, 13); // play effect
-    motor_drv.setWaveform(1, 0);      // end waveform
-    motor_drv.go();
 
     Serial.printf(" -------------------------- ES8311 -------------------------- \n");
     codec.setPins(BOARD_ES8311_MCLK, BOARD_ES8311_SCLK, BOARD_ES8311_LRCK, BOARD_ES8311_ASDOUT, BOARD_ES8311_DSDIN);
@@ -442,8 +447,10 @@ void setup()
     // close backlight
     analogWrite(BOARD_EPD_BL, 0);
     analogWrite(BOARD_KEYBOARD_LED, 0);
+
 }
 
+uint32_t tick = 0;
 
 
 void loop()
@@ -451,7 +458,6 @@ void loop()
     lv_task_handler();
     keypad_loop();
 
-    
     delay(1);
 }
 

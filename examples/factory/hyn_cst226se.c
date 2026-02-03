@@ -166,8 +166,12 @@ static int cst226se_set_workmode(enum work_mode mode,u8 enable)
 
 static int cst226se_supend(void)
 {
-    ESP_LOGI(TAG, "enter %s", __func__);
-    cst226se_set_workmode(DEEPSLEEP,0);
+    ESP_LOGI(TAG,"touch sleep");
+
+    // cst226se_set_workmode(DEEPSLEEP,0);
+
+    hyn_irq_set(hyn_226data,DISABLE);
+    hyn_wr_reg(hyn_226data,0xD105,2,NULL,0);
     return 0;
 }
 

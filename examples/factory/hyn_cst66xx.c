@@ -184,7 +184,7 @@ static int cst66xx_set_workmode(enum work_mode mode,u8 enable)
 
 static int cst66xx_supend(void)
 {
-    ESP_LOGI(TAG, "enter %s", __func__);
+    ESP_LOGI(TAG,"touch sleep");
 
     hyn_wr_reg(hyn_66xxdata,0xD0000400,4,0,0); //disable lp i2c plu
     mdelay(1);

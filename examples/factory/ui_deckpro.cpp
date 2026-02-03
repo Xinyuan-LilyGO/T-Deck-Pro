@@ -605,12 +605,17 @@ static scr_lifecycle_t screen1_1 = {
 #define RADIO_FREQUENCY_LIST "433MHz\n 850MHz\n 868MHz\n 915MHz\n 920MHz"
 #define RADIO_BANDWIDTH "125KHz\n 250KHz\n 500KHz"
 #define RADIO_TX_POWER "10dBm\n 22dBm"
+//   HIGH --- internal antenna 
+//   LOW --- external antenna
+#define RADIO_ANTENNA_DIR "internal\n external"
 
 static float lora_freq_list[] = {433.0, 850.0, 868.0, 915.0, 920.0};
 static int lora_band_list[] = {125, 250, 500};
 static int lora_power_list[] = {10, 22};
+static bool lora_antenna_list[] = {1, 0};
 
 static lv_obj_t *scr1_2_cont;
+static lv_obj_t *dropdown_antenna;
 static lv_obj_t *dropdown_freq;
 static lv_obj_t *dropdown_band;
 static lv_obj_t *dropdown_power;
@@ -633,6 +638,14 @@ static void lora_setting_event_handler(lv_event_t * e)
     lv_dropdown_get_selected_str(obj, buf, sizeof(buf));
     switch (*flag)
     {
+    case 'a':
+        for(int i = 0; i < GET_BUFF_LEN(lora_antenna_list); i++) {
+            if(lora_antenna_list[select] == lora_antenna_list[i]) {
+                printf("set antenna dir %s\n", (lora_antenna_list[i] ? "internal" : "external"));
+                ui_lora_set_ante_dir(lora_antenna_list[i]);
+            }
+        }
+        break;
     case 'f': 
         for(int i = 0; i < GET_BUFF_LEN(lora_freq_list); i++) {
             if(lora_freq_list[select] == lora_freq_list[i]) {
@@ -663,7 +676,7 @@ static void lora_setting_event_handler(lv_event_t * e)
     }
 }
 
-static lv_obj_t * scr1_2_lora_setting_create(lv_obj_t *parent, const char *text)
+static lv_obj_t * scr1_2_lora_setting_create(lv_obj_t *parent, const char *text, int width)
 {
     lv_obj_t *ui_Container1 = lv_obj_create(parent);
     lv_obj_remove_style_all(ui_Container1);
@@ -688,7 +701,7 @@ static lv_obj_t * scr1_2_lora_setting_create(lv_obj_t *parent, const char *text)
     lv_obj_set_style_text_font(ui_Label14, FONT_BOLD_MONO_SIZE_15, LV_PART_MAIN);   
 
     lv_obj_t *ui_Dropdown1 = lv_dropdown_create(ui_Container1);
-    lv_obj_set_width(ui_Dropdown1, lv_pct(60));
+    lv_obj_set_width(ui_Dropdown1, width);
     lv_obj_set_height(ui_Dropdown1, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_Dropdown1, 19);
     lv_obj_set_y(ui_Dropdown1, -1);
@@ -716,7 +729,15 @@ static void create1_2(lv_obj_t *parent)
     // lv_obj_set_style_border_width(scr1_2_cont, 3, LV_PART_MAIN);
     lv_obj_set_align(scr1_2_cont, LV_ALIGN_BOTTOM_MID);
 
-    dropdown_freq = scr1_2_lora_setting_create(scr1_2_cont, "Freq: ");
+    dropdown_antenna = scr1_2_lora_setting_create(scr1_2_cont, "Antenna:", lv_pct(52));
+    lv_dropdown_set_options(dropdown_antenna, RADIO_ANTENNA_DIR);
+    for(int i = 0; i < GET_BUFF_LEN(lora_antenna_list); i++) {
+        if(ui_lora_get_ante_dir() == lora_antenna_list[i]) {
+            lv_dropdown_set_selected(dropdown_antenna, i);
+        }
+    }
+
+    dropdown_freq = scr1_2_lora_setting_create(scr1_2_cont, "Freq: ", lv_pct(60));
     lv_dropdown_set_options(dropdown_freq, RADIO_FREQUENCY_LIST);
     for(int i = 0; i < GET_BUFF_LEN(lora_freq_list); i++) {
         if(ui_lora_get_freq() == lora_freq_list[i]) {
@@ -724,7 +745,7 @@ static void create1_2(lv_obj_t *parent)
         }
     }
 
-    dropdown_band = scr1_2_lora_setting_create(scr1_2_cont, "Band: ");
+    dropdown_band = scr1_2_lora_setting_create(scr1_2_cont, "Band: ", lv_pct(60));
     lv_dropdown_set_options(dropdown_band, RADIO_BANDWIDTH);
     for(int i = 0; i < GET_BUFF_LEN(lora_band_list); i++) {
         if(ui_lora_get_bandwidth() == lora_band_list[i]) {
@@ -732,16 +753,18 @@ static void create1_2(lv_obj_t *parent)
         }
     }
 
-    dropdown_power = scr1_2_lora_setting_create(scr1_2_cont, "Power:");
+    dropdown_power = scr1_2_lora_setting_create(scr1_2_cont, "Power:", lv_pct(60));
     lv_dropdown_set_options(dropdown_power, RADIO_TX_POWER);
     for(int i = 0; i < GET_BUFF_LEN(lora_power_list); i++) {
         if(ui_lora_get_power() == lora_power_list[i]) {
             lv_dropdown_set_selected(dropdown_power, i);
         }
     }
+    static const char ante_flag = 'a';
     static const char freq_flag = 'f';
     static const char band_flag = 'b';
     static const char power_flag = 'p';
+    lv_obj_add_event_cb(dropdown_antenna, lora_setting_event_handler, LV_EVENT_VALUE_CHANGED, (void *)&ante_flag);
     lv_obj_add_event_cb(dropdown_freq, lora_setting_event_handler, LV_EVENT_VALUE_CHANGED, (void *)&freq_flag);
     lv_obj_add_event_cb(dropdown_band, lora_setting_event_handler, LV_EVENT_VALUE_CHANGED, (void *)&band_flag);
     lv_obj_add_event_cb(dropdown_power,   lora_setting_event_handler, LV_EVENT_VALUE_CHANGED, (void *)&power_flag);
@@ -2625,6 +2648,7 @@ static void create10(lv_obj_t *parent)
 static void entry10(void) 
 {
     ui_disp_full_refr();
+    ui_xl9555_audio_sel(LOW);
 }
 static void exit10(void) 
 {
@@ -2752,43 +2776,6 @@ static void indev_get_gesture_dir(lv_timer_t *t)
         ui_get_gesture_dir(LV_DIR_LEFT);
     }
 
-    // lv_indev_data_t data;
-    // lv_indev_t * indev_pointer = lv_indev_get_next(NULL);
-    // lv_coord_t diff_x = 0;
-    // lv_coord_t diff_y = 0;
-
-    // static lv_point_t last_point;
-    // static bool is_press = false;
-
-    // _lv_indev_read(indev_pointer, &data);
-
-    // if(data.state == LV_INDEV_STATE_PR){
-
-    //     if(is_press == false) {
-    //         is_press = true;
-    //         last_point = data.point;
-    //     }
-
-    //     diff_x = last_point.x - data.point.x;
-    //     diff_y = last_point.x - data.point.y;
-
-    //     if(diff_x > UI_SLIDING_DISTANCE) { // right
-    //         if(ui_get_gesture_dir) {
-    //             ui_get_gesture_dir(LV_DIR_LEFT);
-    //         }
-    //         last_point.x = 0;
-    //     } else if(diff_x < -UI_SLIDING_DISTANCE) { // left
-    //         if(ui_get_gesture_dir) {
-    //             ui_get_gesture_dir(LV_DIR_RIGHT);
-    //         }
-    //         last_point.x = 0;
-    //     }
-    //     // Serial.printf("x=%d, y=%d\n", data.point.x, data.point.y);
-    // }else{
-    //     is_press = false;
-    //     last_point.x = 0;
-    //     last_point.y = 0;
-    // }
 }
 
 static void menu_keypay_get_event(lv_timer_t *t)

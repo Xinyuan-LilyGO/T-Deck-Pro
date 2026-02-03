@@ -149,7 +149,11 @@ static int cst3xx_set_workmode(enum work_mode mode,u8 enable)
 static int cst3xx_supend(void)
 {
     HYN_ENTER();
-    cst3xx_set_workmode(DEEPSLEEP,0);
+    // cst3xx_set_workmode(DEEPSLEEP,0);
+    ESP_LOGI(TAG,"touch sleep");
+
+    hyn_irq_set(hyn_3xxdata,DISABLE);
+    hyn_wr_reg(hyn_3xxdata,0xD105,2,NULL,0);
     return 0;
 }
 

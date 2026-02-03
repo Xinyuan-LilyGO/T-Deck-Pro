@@ -66,5 +66,5 @@ void disp_full_refr(void); // Next global refresh
 
 int hyn_touch_init(void);
 uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_point);
-
+void hyn_sleep(void);
 #endif

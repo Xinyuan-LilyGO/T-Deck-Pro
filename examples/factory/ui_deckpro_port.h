@@ -56,8 +56,8 @@ void ui_xl9555_amplifier(bool en);
 
 /* LORA_SEL determines whether to use the internal antenna 
 /  or the external antenna; Connected to XL9555 IO04
-/   HIGH --- external antenna
-/   LOW --- internal antenna  */
+/   HIGH --- internal antenna
+/   LOW --- external antenna  */
 void ui_xl9555_lora_antenna_sel(bool ante);
 
 /* Module A7682E and ES8311 share the output for headphones and speakers.
@@ -67,6 +67,8 @@ void ui_xl9555_lora_antenna_sel(bool ante);
 void ui_xl9555_audio_sel(bool sel);
 
 // [ screen 1 ] --- lora
+bool ui_lora_get_ante_dir(void);
+void ui_lora_set_ante_dir(bool dir);
 float ui_lora_get_freq(void);
 void ui_lora_set_freq(float freq);
 int ui_lora_get_bandwidth(void);

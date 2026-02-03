@@ -44,7 +44,10 @@ void ui_xl9555_audio_sel(bool sel)          { xl9555_io.digitalWrite(BOARD_XL955
 static float lora_default_freq = 850.0;
 static int lora_default_band = 125;
 static int lora_default_power = 22;
+static bool lora_default_ante_dir = HIGH;
 
+bool ui_lora_get_ante_dir(void) {return lora_default_ante_dir; }
+void ui_lora_set_ante_dir(bool dir) {lora_default_ante_dir = dir; }
 float ui_lora_get_freq(void) { return lora_default_freq; }
 void ui_lora_set_freq(float freq) { lora_default_freq = freq; }
 int ui_lora_get_bandwidth(void) { return lora_default_band; }
@@ -54,6 +57,14 @@ void ui_lora_set_power(float po) { lora_default_power = po; }
 
 void ui_lora_param_set(void)
 {
+// LOW --- external antenna 
+// HIGH --- internal antenna (default)
+    if(lora_default_ante_dir == 0) {
+        ui_xl9555_lora_antenna_sel(LOW);
+    } else {
+        ui_xl9555_lora_antenna_sel(HIGH);
+    }
+    
     lora_param_set();
 }
 
@@ -458,22 +469,41 @@ void ui_system_sleep(void)
     // extern TouchDrvCSTXXX touch;
     extern ExtensionIOXL9555 xl9555_io;
     // touch.sleep();
+    hyn_sleep();
+
+    lora_sleep();
+
+    SerialMon.end();
+    SerialAT.end();
+    SerialGPS.end();
+
+    Serial1.end();
+
+    SPI.end();
 
     const uint8_t expands[] = {
         BOARD_XL9555_00_6609_EN,
         BOARD_XL9555_01_LORA_EN,
         BOARD_XL9555_02_GPS_EN,
         BOARD_XL9555_03_1V8_EN,
-        // BOARD_XL9555_04_LORA_SEL,
         BOARD_XL9555_05_MOTOR_EN,
+    };
+    for (auto pin : expands) {
+        xl9555_io.digitalWrite(pin, LOW);
+        delay(1);
+    }
+
+    const uint8_t expands2[] = {
+        BOARD_XL9555_04_LORA_SEL,
         BOARD_XL9555_06_AMPLIFIER,
         BOARD_XL9555_07_TOUCH_RST,
         BOARD_XL9555_10_PWEKEY_EN,
         BOARD_XL9555_11_KEY_RST,
         BOARD_XL9555_12_AUDIO_SEL,
     };
-    for (auto pin : expands) {
-        xl9555_io.digitalWrite(pin, LOW);
+    for (auto pin : expands2) {
+        // xl9555_io.digitalWrite(pin, LOW);
+        xl9555_io.pinMode(pin, INPUT);
         delay(1);
     }
 
@@ -484,12 +514,6 @@ void ui_system_sleep(void)
         BOARD_TOUCH_INT,
 
         BOARD_GYROSCOPDE_INT,
-
-        BOARD_ES8311_MCLK,
-        BOARD_ES8311_SCLK,
-        BOARD_ES8311_ASDOUT,
-        BOARD_ES8311_LRCK,
-        BOARD_ES8311_DSDIN,
 
         BOARD_EPD_BL,
         BOARD_EPD_DC,
@@ -524,23 +548,32 @@ void ui_system_sleep(void)
     };
 
     for (auto pin : pins) {
-        log_d("Set pin %d to open drain\n", pin);
+        log_i("Set pin %d to open drain\n", pin);
         gpio_reset_pin((gpio_num_t )pin);
-        pinMode(pin, OPEN_DRAIN);
+        // pinMode(pin, OPEN_DRAIN);
+        pinMode(pin, INPUT);
     }
 
-    lora_sleep();
+    const uint8_t pins2[] = {
+        // BOARD_EPD_RST,
+        // BOARD_LORA_RST,
 
-    SerialMon.end();
-    SerialAT.end();
-    SerialGPS.end();
-
-    Serial1.end();
-
-    SPI.end();
+        BOARD_ES8311_MCLK,
+        BOARD_ES8311_SCLK,
+        BOARD_ES8311_ASDOUT,
+        BOARD_ES8311_LRCK,
+        BOARD_ES8311_DSDIN,
+    };
+    for (auto pin : pins2) {
+        log_i("Set pin %d to open drain\n", pin);
+        gpio_reset_pin((gpio_num_t )pin);
+        // pinMode(pin, OPEN_DRAIN);
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, LOW);
+    }
 
     Wire.end();
-    
+
     // gpio_reset_pin((gpio_num_t)BOARD_GPS_PPS);
     // gpio_reset_pin((gpio_num_t)BOARD_GPS_RXD);
     // gpio_reset_pin((gpio_num_t)BOARD_GPS_TXD);

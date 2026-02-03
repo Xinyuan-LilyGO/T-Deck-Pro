@@ -112,10 +112,9 @@ uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_poin
         // printf("\n");
     }
     hyn_data->rp_buf.report_need = REPORT_NONE;
+    printf("key_id:%d, key_st:%d\n", hyn_data->rp_buf.key_id, hyn_data->rp_buf.key_state);
 
     return hyn_data->rp_buf.rep_num;
-
-        
     // }
 }
 
@@ -163,6 +162,7 @@ int hyn_touch_init(void)
         ret = hyn_data->hyn_fuc_used->tp_chip_init(hyn_data);
         if (!ret)
         {
+            printf("hyn_sleep = %p\n", hyn_data->hyn_fuc_used->tp_supend);
             ESP_LOGI(TAG, "Touch init SUCCEED");
             ESP_LOGI(TAG, "IC_info fw_project_id:%lx", hyn_data->hw_info.fw_project_id);
             ESP_LOGI(TAG, "ictype:[%lx]", hyn_data->hw_info.fw_chip_type);
@@ -192,4 +192,12 @@ int hyn_touch_init(void)
     gpio_isr_handler_add((gpio_num_t)hyn_data->plat_data.irq_gpio, gpio_isr_handler, (void *)hyn_data->plat_data.irq_gpio);
 
     return !ret;
+}
+
+void hyn_sleep(void)
+{
+    printf("hyn_sleep = %p\n", hyn_data->hyn_fuc_used->tp_supend);
+    hyn_data->hyn_fuc_used->tp_supend();
+    delay(100);
+    
 }
