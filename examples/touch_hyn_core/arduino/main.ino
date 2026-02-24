@@ -13,11 +13,10 @@
 
 #define CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN 13
 #define CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN 14
-#define CONFIG_EXAMPLE_TOUCH_RST_PIN -1    //Connect to pin 07 of the expansion chip "BOARD_XL9555_07_TOUCH_RST"
+#define CONFIG_EXAMPLE_TOUCH_RST_PIN -1 // Connect to pin 07 of the expansion chip "BOARD_XL9555_07_TOUCH_RST"
 #define CONFIG_EXAMPLE_TOUCH_INT_PIN 12
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
 
 const static char *TAG = "[HYN]";
 static struct hyn_ts_data *hyn_data;
@@ -97,10 +96,13 @@ void touch_init()
   gpio_config_t io_conf = {};
   io_conf.intr_type = GPIO_INTR_DISABLE;
   io_conf.mode = GPIO_MODE_OUTPUT;
-  io_conf.pin_bit_mask = (1ULL << hyn_data->plat_data.reset_gpio);
   io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
   io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-  gpio_config(&io_conf);
+  if (hyn_data->plat_data.reset_gpio != -1)
+  {
+    io_conf.pin_bit_mask = (1ULL << hyn_data->plat_data.reset_gpio);
+    gpio_config(&io_conf);
+  }
 
   // 初始化I2c master ,配置速率、master addr
   hyn_i2c_init(CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN, CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN);
