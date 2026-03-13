@@ -11,9 +11,14 @@
 #include "sdkconfig.h"
 #include "hyn_core.h"
 
-#define CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN 13
-#define CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN 14
-#define CONFIG_EXAMPLE_TOUCH_RST_PIN -1 // Connect to pin 07 of the expansion chip "BOARD_XL9555_07_TOUCH_RST"
+#include "board_pins.h"
+
+#include <Wire.h>
+#include "ExtensionIOXL9555.hpp"
+
+#define CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN BOARD_I2C_SDA
+#define CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN BOARD_I2C_SCL
+#define CONFIG_EXAMPLE_TOUCH_RST_PIN BOARD_TOUCH_RST // XL9555 IO07
 #define CONFIG_EXAMPLE_TOUCH_INT_PIN 12
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -21,6 +26,8 @@
 const static char *TAG = "[HYN]";
 static struct hyn_ts_data *hyn_data;
 static xQueueHandle gpio_evt_queue;
+
+ExtensionIOXL9555 xl9555_io;
 
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
@@ -98,11 +105,13 @@ void touch_init()
   io_conf.mode = GPIO_MODE_OUTPUT;
   io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
   io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-  if (hyn_data->plat_data.reset_gpio != -1)
+  if (hyn_data->plat_data.reset_gpio != -1 && !XL9555_GPIO_IS(hyn_data->plat_data.reset_gpio))
   {
     io_conf.pin_bit_mask = (1ULL << hyn_data->plat_data.reset_gpio);
     gpio_config(&io_conf);
   }
+
+  hyn_data->hyn_fuc_used->tp_rest(); // 复位触摸芯片
 
   // 初始化I2c master ,配置速率、master addr
   hyn_i2c_init(CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN, CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN);
@@ -146,6 +155,14 @@ void touch_init()
 void setup()
 {
   Serial.begin(115200);
+
+  Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
+  if (xl9555_io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
+    xl9555_io.pinMode(BOARD_XL9555_07_TOUCH_RST, OUTPUT);
+    xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, HIGH);
+  } else {
+    Serial.println("Failed to find XL9555 - touch reset may not work");
+  }
 
   touch_init();
 }

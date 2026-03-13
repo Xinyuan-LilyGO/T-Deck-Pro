@@ -60,6 +60,14 @@
 #define BOARD_XL9555_16             (14)    // Reserve
 #define BOARD_XL9555_17             (15)    // Reserve
 
+// -------------------------------------------------
+// XL9555 "virtual GPIO" encoding for drivers that expect a GPIO number.
+// Keep it C/C++ friendly: these are macros only.
+#define XL9555_GPIO_BASE            (0x100)
+#define XL9555_GPIO(pin)            (XL9555_GPIO_BASE + (pin))
+#define XL9555_GPIO_IS(id)          ((int)(id) >= XL9555_GPIO_BASE && (int)(id) < (XL9555_GPIO_BASE + 16))
+#define XL9555_GPIO_TO_PIN(id)      ((uint8_t)((id) - XL9555_GPIO_BASE))
+
 // Keyboard
 #define BOARD_KEYBOARD_SCL BOARD_I2C_SCL
 #define BOARD_KEYBOARD_SDA BOARD_I2C_SDA
@@ -71,7 +79,9 @@
 #define BOARD_TOUCH_SCL BOARD_I2C_SCL
 #define BOARD_TOUCH_SDA BOARD_I2C_SDA
 #define BOARD_TOUCH_INT 12
-#define BOARD_TOUCH_RST BOARD_XL9555_07_TOUCH_RST   // Connect the IO07 of the chip XL9555
+// Touch reset is wired to XL9555 IO07 (not an ESP32 GPIO). Encode it so the touch
+// stack can route reset toggles through the XL9555 driver.
+#define BOARD_TOUCH_RST XL9555_GPIO(BOARD_XL9555_07_TOUCH_RST)
 
 // Gyroscope
 #define BOARD_GYROSCOPDE_SCL BOARD_I2C_SCL

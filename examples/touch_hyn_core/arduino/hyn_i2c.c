@@ -1,4 +1,5 @@
 #include "hyn_core.h"
+#include "hyn_platform.h"
 
 
 
@@ -74,11 +75,18 @@ void hyn_delay_ms(int cnt)
 /**gpio ctl*/
 int gpio_set_value(uint32_t gpio_id,bool vlue)
 {
+    if (hyn_platform_gpio_set_value(gpio_id, vlue ? 1 : 0)) {
+        return 0;
+    }
     gpio_set_level(gpio_id,vlue);
     return 0;
 }   
 bool gpio_get_value(uint32_t gpio_id) 
 {
- return gpio_get_level(gpio_id);
+    int value = 0;
+    if (hyn_platform_gpio_get_value(gpio_id, &value)) {
+        return value ? true : false;
+    }
+    return gpio_get_level(gpio_id);
 }
 

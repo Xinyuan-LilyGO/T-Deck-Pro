@@ -160,12 +160,14 @@ int hyn_touch_init(void)
 
     // 配置rst 脚为push-pullp输出模式，输出1
     gpio_config_t io_conf = {};
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << hyn_data->plat_data.reset_gpio);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
+    if (hyn_data->plat_data.reset_gpio >= 0 && !XL9555_GPIO_IS(hyn_data->plat_data.reset_gpio)) {
+        io_conf.intr_type = GPIO_INTR_DISABLE;
+        io_conf.mode = GPIO_MODE_OUTPUT;
+        io_conf.pin_bit_mask = (1ULL << hyn_data->plat_data.reset_gpio);
+        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+        gpio_config(&io_conf);
+    }
 
     // 初始化I2c master ,配置速率、master addr
     hyn_i2c_init(CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN, CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN);
