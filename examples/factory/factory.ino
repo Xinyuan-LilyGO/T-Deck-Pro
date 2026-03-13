@@ -35,7 +35,7 @@ EspCodec codec;
 
 uint8_t *decodebuffer = NULL;
 int disp_refr_mode = DISP_REFR_MODE_PART;
-const char HelloWorld[] = "T-Deck-Pro MAX v0.1";
+const char HelloWorld[] = BOARD_NAME;
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
 

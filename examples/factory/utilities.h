@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#define BOARD_NAME               "T-Deck-Pro MAX v0.3"
 #define UI_T_DECK_PRO_VERSION    "v3.1-260313"  // Software version
 #define BOARD_T_DECK_PRO_VERSION "v3.3-250911"  // Hardware version
 
