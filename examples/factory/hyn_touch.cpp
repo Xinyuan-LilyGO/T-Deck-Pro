@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "hyn_core.h"
 #include "utilities.h"
+#include "ui_scr_mrg.h"
 
 #define CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN BOARD_TOUCH_SDA
 #define CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN BOARD_TOUCH_SCL
@@ -113,6 +114,20 @@ uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_poin
     }
     hyn_data->rp_buf.report_need = REPORT_NONE;
     printf("key_id:%d, key_st:%d\n", hyn_data->rp_buf.key_id, hyn_data->rp_buf.key_state);
+
+    /* 3 physical buttons (key_id 0~2) - on press, pop current screen to go back */
+    static bool key_pressed[3] = {false, false, false};
+    if (hyn_data->rp_buf.key_id >= 0 && hyn_data->rp_buf.key_id < 3) {
+        int kid = hyn_data->rp_buf.key_id;
+        if (hyn_data->rp_buf.key_state == 1) {
+            if (!key_pressed[kid]) {
+                key_pressed[kid] = true;
+                scr_mgr_pop(false);
+            }
+        } else {
+            key_pressed[kid] = false;
+        }
+    }
 
     return hyn_data->rp_buf.rep_num;
     // }

@@ -5,7 +5,8 @@
  *                                  INCLUDES
  * *******************************************************************************/
 #include "peripheral.h"
-#define XPOWERS_CHIP_BQ25896
+// #define XPOWERS_CHIP_BQ25896
+#define XPOWERS_CHIP_SY6970
 #include <XPowersLib.h>
 #include "bq27220.h"
 #include "FS.h"

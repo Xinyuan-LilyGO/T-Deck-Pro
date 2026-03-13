@@ -174,12 +174,32 @@ static void lvgl_init(void)
 
 static bool bq25896_init(void)
 {
+    int ret = 0;
     // BQ25896 --- 0x6B
-    Wire.beginTransmission(BOARD_I2C_ADDR_BQ25896);
-    if (Wire.endTransmission() == 0)
-    {
-        // battery_25896.begin();
-        PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, BOARD_I2C_ADDR_BQ25896);
+    // ret = Wire.beginTransmission(BOARD_I2C_ADDR_BQ25896);
+    // ret = Wire.endTransmission();
+    // if (ret == 0)
+    // {
+    //     // battery_25896.begin();
+    //     PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, BOARD_I2C_ADDR_BQ25896);
+    //     // set battery charge voltage
+    //     PPM.setChargeTargetVoltage(4288);
+
+    //     // Set charge current
+    //     PPM.setChargerConstantCurr(1024);
+
+    //     // Enable measure
+    //     // PPM.enableMeasure();
+    //     PPM.disableMeasure();
+
+    //     return true;
+    // }
+
+    // SY6970 --- 0x6A
+    Wire.beginTransmission(SY6970_SLAVE_ADDRESS);
+    ret = Wire.endTransmission();
+    if(ret == 0) {
+        PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, SY6970_SLAVE_ADDRESS);
         // set battery charge voltage
         PPM.setChargeTargetVoltage(4288);
 
@@ -187,8 +207,8 @@ static bool bq25896_init(void)
         PPM.setChargerConstantCurr(1024);
 
         // Enable measure
-        // PPM.enableMeasure();
-        PPM.disableMeasure();
+        PPM.enableMeasure();
+        // PPM.disableMeasure();
 
         return true;
     }

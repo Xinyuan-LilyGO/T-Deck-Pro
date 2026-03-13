@@ -1456,7 +1456,7 @@ static int test_curr_page = 0;
 static ui_test_handle test_handle_list[] = {
     { .name="Lora",       .peri_id=E_PERI_LORA       , .cb=ui_test_get },
     { .name="Touch",      .peri_id=E_PERI_TOUCH      , .cb=ui_test_get },
-    { .name="BQ25896",    .peri_id=E_PERI_BQ25896    , .cb=ui_test_get },
+    { .name="SY6970",    .peri_id=E_PERI_BQ25896    , .cb=ui_test_get },
     { .name="BQ27220",    .peri_id=E_PERI_BQ27220    , .cb=ui_test_get },
     { .name="SD Card",    .peri_id=E_PERI_SD         , .cb=ui_test_get },
     { .name="A7682E",     .peri_id=E_PERI_A7682E     , .cb=ui_test_get },
@@ -1647,7 +1647,7 @@ static void scr6_list_event(lv_event_t *e)
         if(lv_obj_check_type(child, &lv_label_class)) {
             char *str = lv_label_get_text(child);
 
-            if(strcmp("- BQ25896", str) == 0)
+            if(strcmp("- SY6970", str) == 0)
             {
                 scr_mgr_push(SCREEN6_1_ID, false);
             }
@@ -1705,7 +1705,7 @@ static void create6(lv_obj_t *parent)
     // lv_obj_set_style_border_color(scr6_list, lv_color_hex(EPD_COLOR_FG), LV_PART_MAIN);
     lv_obj_set_style_shadow_width(scr6_list, 0, LV_PART_MAIN);
 
-    scr6_item_create("- BQ25896", scr6_list_event);
+    scr6_item_create("- SY6970", scr6_list_event);
     scr6_item_create("- BQ27220", scr6_list_event);
 
     // back
@@ -1818,7 +1818,7 @@ static void create6_1(lv_obj_t *parent)
         label_list[i] = scr6_1_create_label(scr6_1_cont);
     }
 
-    scr_back_btn_create(parent, ("BQ25896"), scr6_1_btn_event_cb);
+    scr_back_btn_create(parent, ("SY6970"), scr6_1_btn_event_cb);
 }
 static void entry6_1(void) 
 {
