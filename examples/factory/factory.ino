@@ -377,9 +377,13 @@ void setup()
         // xl9555_io.pinMode(BOARD_XL9555_04_LORA_SEL, OUTPUT);
         // xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW);
 
-        // xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
-        // delay(100);
-        // xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, HIGH);
+        // Ensure touch controller exits any "half-powered" state after a power cut:
+        // provide a deterministic reset pulse via XL9555 IO07 before touch init.
+        xl9555_io.pinMode(BOARD_XL9555_07_TOUCH_RST, OUTPUT);
+        xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
+        delay(20);
+        xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, HIGH);
+        delay(60);
     } else {
         while (1) {
             Serial.println("Failed to find XL9555 - check your wiring!");

@@ -159,7 +159,11 @@ void setup()
   Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
   if (xl9555_io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
     xl9555_io.pinMode(BOARD_XL9555_07_TOUCH_RST, OUTPUT);
+    // Deterministic reset pulse after peripheral power cut.
+    xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
+    delay(20);
     xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, HIGH);
+    delay(60);
   } else {
     Serial.println("Failed to find XL9555 - touch reset may not work");
   }

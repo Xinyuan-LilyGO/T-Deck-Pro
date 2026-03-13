@@ -400,6 +400,14 @@ void ui_a7682_loop_suspend(void)
 
 void ui_shutdown_on(void)
 {
+    // If the system powers off rails via SY6970, the touch controller can end up in an
+    // undefined state. Put it into suspend and assert reset before shutdown.
+    extern ExtensionIOXL9555 xl9555_io;
+    hyn_sleep();
+    xl9555_io.pinMode(BOARD_XL9555_07_TOUCH_RST, OUTPUT);
+    xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
+    delay(20);
+
     PPM.shutdown();
     Serial.println("Shutdown .....");
 }
