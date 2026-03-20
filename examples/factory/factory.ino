@@ -42,9 +42,44 @@ bool peri_init_st[E_PERI_NUM_MAX] = {0};
 /*********************************************************************************
  *                              STATIC PROTOTYPES
  * *******************************************************************************/
+static void epd_prepare_bus()
+{
+    // EPD, LoRa and SD share the SPI bus. Keep the other devices deselected
+    // before sending commands to the panel to avoid command corruption.
+    pinMode(BOARD_LORA_CS, OUTPUT);
+    digitalWrite(BOARD_LORA_CS, HIGH);
+    pinMode(BOARD_SD_CS, OUTPUT);
+    digitalWrite(BOARD_SD_CS, HIGH);
+    pinMode(BOARD_EPD_CS, OUTPUT);
+    digitalWrite(BOARD_EPD_CS, HIGH);
+}
+
+static uint32_t pack_lvgl_area_to_epd(const lv_color_t *color_p, uint32_t w, uint32_t h)
+{
+    const uint32_t bytes_per_row = (w + 7U) / 8U;
+    uint32_t epd_idx = 0;
+
+    for (uint32_t y = 0; y < h; ++y) {
+        for (uint32_t x = 0; x < w; x += 8U) {
+            uint8_t byte = 0;
+
+            for (uint32_t bit = 0; bit < 8U; ++bit) {
+                const uint32_t src_x = x + bit;
+                if ((src_x < w) && color_p[(y * w) + src_x].full) {
+                    byte |= (0x80U >> bit);
+                }
+            }
+
+            decodebuffer[epd_idx++] = byte;
+        }
+    }
+
+    return bytes_per_row * h;
+}
+
 static bool ink_screen_init()
 {
-    // SPI.begin(BOARD_SPI_SCK, -1, BOARD_SPI_MOSI, BOARD_EPD_CS);
+    epd_prepare_bus();
     display.init(115200, true, 2, false);
     //Serial.println("helloWorld");
     display.setRotation(0);
@@ -68,47 +103,36 @@ static bool ink_screen_init()
         display.print(UI_T_DECK_PRO_VERSION);
     }
     while (display.nextPage());
-    display.hibernate();
+    display.powerOff();
     return true;
 }
 
 static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
 {
-    uint32_t w = (area->x2 - area->x1);
-    uint32_t h = (area->y2 - area->y1);
-
-    uint16_t epd_idx = 0;
-
-    union flush_buf_pixel pixel;
-
-    for(int i = 0; i < w * h; i += 8) {
-        pixel.bit.b1 = (color_p + i + 7)->full;
-        pixel.bit.b2 = (color_p + i + 6)->full;
-        pixel.bit.b3 = (color_p + i + 5)->full;
-        pixel.bit.b4 = (color_p + i + 4)->full;
-        pixel.bit.b5 = (color_p + i + 3)->full;
-        pixel.bit.b6 = (color_p + i + 2)->full;
-        pixel.bit.b7 = (color_p + i + 1)->full;
-        pixel.bit.b8 = (color_p + i + 0)->full;
-        decodebuffer[epd_idx] = pixel.full;
-        epd_idx++;
-    }
+    const uint32_t w = (uint32_t)(area->x2 - area->x1 + 1);
+    const uint32_t h = (uint32_t)(area->y2 - area->y1 + 1);
+    (void)pack_lvgl_area_to_epd(color_p, w, h);
 
     static int idx = 0;
+    epd_prepare_bus();
     if(disp_refr_mode == DISP_REFR_MODE_PART) {
-        display.setPartialWindow(0, 0, w, h);
+        display.setPartialWindow(area->x1, area->y1, w, h);
     } else if(disp_refr_mode == DISP_REFR_MODE_FULL){
         display.setFullWindow();
     }
 
     display.firstPage();
     do {
-        display.drawInvertedBitmap(0, 0, decodebuffer, w, h - 3, GxEPD_BLACK);
+        display.drawInvertedBitmap(area->x1, area->y1, decodebuffer, w, h, GxEPD_BLACK);
     }
     while (display.nextPage());
     // display.hibernate();
     
-    Serial.printf("flush_timer_cb:%d, %s\n", idx++, (disp_refr_mode == 0 ?"full":"part"));
+    Serial.printf("flush_timer_cb:%d, %s, x=%d, y=%d, w=%lu, h=%lu\n",
+                  idx++,
+                  (disp_refr_mode == 0 ? "full" : "part"),
+                  area->x1, area->y1,
+                  (unsigned long)w, (unsigned long)h);
 
     disp_refr_mode = DISP_REFR_MODE_PART;
 
