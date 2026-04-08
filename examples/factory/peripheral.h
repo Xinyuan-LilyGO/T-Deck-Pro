@@ -41,6 +41,13 @@ void lora_param_set(void);
 // keypad
 #define KEYPAD_PRESS   1
 #define KEYPAD_RELEASE 0
+#define KEYPAD_KEY_NONE  '\0'
+#define KEYPAD_KEY_DEL   '\b'
+#define KEYPAD_KEY_SPACE ' '
+#define KEYPAD_KEY_ALT   '2'
+#define KEYPAD_KEY_ENT   'E'
+#define KEYPAD_KEY_UP    'U'
+#define KEYPAD_KEY_SYM   'S'
 
 typedef void (*keypad_cb)(int state, char val);
 
@@ -49,6 +56,7 @@ int keypad_get_val(char *c);
 void keypad_loop(void);
 void keypad_regetser_cb(keypad_cb cb);
 void keypad_set_flag(void);
+const char *keypad_key_name(char c);
 
 // gyro
 bool BHI260AP_init(void);

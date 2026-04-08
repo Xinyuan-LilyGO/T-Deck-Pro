@@ -1990,7 +1990,7 @@ static void input_timer_event(lv_timer_t *t)
     if(ret > 0)
     {
         ui_input_set_keypay_flag();
-        lv_label_set_text_fmt(input_keypad, "Keypad: %c", keypay_v);
+        lv_label_set_text_fmt(input_keypad, "Keypad: %s", keypad_key_name(keypay_v));
     }
 
     static int sec = 0;
@@ -2790,7 +2790,7 @@ static void menu_keypay_get_event(lv_timer_t *t)
         sec = 0;
         press = true;
         ui_input_set_keypay_flag();
-        lv_label_set_text_fmt(menu_keypad, "%c", keypay_v);
+        lv_label_set_text_fmt(menu_keypad, "%s", keypad_key_name(keypay_v));
     }
 
     if(press){

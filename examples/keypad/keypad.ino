@@ -12,8 +12,40 @@
 //
 #define KEYPAD_ROWS 4
 #define KEYPAD_COLS 10
+#define KEYPAD_KEY_NONE  '\0'
+#define KEYPAD_KEY_DEL   '\b'
+#define KEYPAD_KEY_SPACE ' '
+#define KEYPAD_KEY_ALT   '2'
+#define KEYPAD_KEY_ENT   'E'
+#define KEYPAD_KEY_UP    'U'
+#define KEYPAD_KEY_SYM   'S'
 
 Adafruit_TCA8418 keypad;
+
+const char keymap[KEYPAD_ROWS][KEYPAD_COLS] = {
+    {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'},
+    {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', KEYPAD_KEY_DEL},
+    {KEYPAD_KEY_ALT, 'z', 'x', 'c', 'v', 'b', 'n', 'm', '$', KEYPAD_KEY_ENT},
+    {KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_UP, '0', KEYPAD_KEY_SPACE, KEYPAD_KEY_SYM, KEYPAD_KEY_UP},
+};
+
+const char *key_name(char c)
+{
+    static char label[2] = {0};
+    switch (c) {
+        case KEYPAD_KEY_DEL: return "DEL";
+        case KEYPAD_KEY_SPACE: return "SPACE";
+        case KEYPAD_KEY_ALT: return "ALT";
+        case KEYPAD_KEY_ENT: return "ENT";
+        case KEYPAD_KEY_UP: return "UP";
+        case KEYPAD_KEY_SYM: return "sym";
+        case KEYPAD_KEY_NONE: return "NONE";
+        default:
+            label[0] = c;
+            label[1] = '\0';
+            return label;
+    }
+}
 
 void setup(void)
 {
@@ -65,9 +97,14 @@ void loop(void)
             Serial.print("RELEASE\tR: ");
         k &= 0x7F;
         k--;
-        Serial.print(k / 10);
+        int row = k / KEYPAD_COLS;
+        int col = (KEYPAD_COLS - 1) - (k % KEYPAD_COLS);
+        char c = keymap[row][col];
+        Serial.print(row);
         Serial.print("\tC: ");
-        Serial.print(k % 10);
+        Serial.print(col);
+        Serial.print("\tKEY: ");
+        Serial.print(key_name(c));
         Serial.println();
     }
 }

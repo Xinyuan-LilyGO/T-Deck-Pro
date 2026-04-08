@@ -12,9 +12,9 @@
 
 const char keymap[KEYPAD_ROWS][KEYPAD_COLS] = {
     {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'},
-    {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '0'},
-    {'2', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '$', 'E'},
-    {' ', ' ', ' ', ' ', ' ', '-', '*', 'S', '0', 'U'},
+    {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', KEYPAD_KEY_DEL},
+    {KEYPAD_KEY_ALT, 'z', 'x', 'c', 'v', 'b', 'n', 'm', '$', KEYPAD_KEY_ENT},
+    {KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_NONE, KEYPAD_KEY_UP, '0', KEYPAD_KEY_SPACE, KEYPAD_KEY_SYM, KEYPAD_KEY_UP},
 };
 
 Adafruit_TCA8418 keypad; 
@@ -60,6 +60,24 @@ void keypad_set_flag(void)
     keypad_update = false;
 }
 
+const char *keypad_key_name(char c)
+{
+    static char label[2] = {0};
+    switch (c) {
+        case KEYPAD_KEY_DEL: return "DEL";
+        case KEYPAD_KEY_SPACE: return "SPACE";
+        case KEYPAD_KEY_ALT: return "ALT";
+        case KEYPAD_KEY_ENT: return "ENT";
+        case KEYPAD_KEY_UP: return "UP";
+        case KEYPAD_KEY_SYM: return "sym";
+        case KEYPAD_KEY_NONE: return "NONE";
+        default:
+            label[0] = c;
+            label[1] = '\0';
+            return label;
+    }
+}
+
 void keypad_loop(void)
 {
     char c = -1;
@@ -82,7 +100,10 @@ void keypad_loop(void)
         row = k / KEYPAD_COLS;
         col = (KEYPAD_COLS-1) - k % KEYPAD_COLS;
         c = keymap[row][col];
-        Serial.printf("k=%d, v=%d, press:%d, %d, %c\n", k, v, row, col, c);
+        if (c == KEYPAD_KEY_NONE) {
+            return;
+        }
+        Serial.printf("k=%d, v=%d, press:%d, %d, %s\n", k, v, row, col, keypad_key_name(c));
         // if(keypad_listener)
         //     keypad_listener(state, c);
         

@@ -21,7 +21,7 @@
 #include <esp_sleep.h>
 #include <lvgl.h>
 
-#define XPOWERS_CHIP_SY6970
+#define XPOWERS_CHIP_BQ25896
 #include <XPowersLib.h>
 
 #include "Adafruit_DRV2605.h"
@@ -109,9 +109,14 @@ struct DisplayCtx {
 };
 
 struct TouchCtx {
-    bool hit[5];
-    lv_obj_t *targets[5];
-    uint8_t hit_count;
+    int16_t last_x;
+    int16_t last_y;
+    uint8_t point_count;
+    bool has_point;
+    bool key_down[3];
+    bool key_hit[3];
+    lv_obj_t *key_blocks[3];
+    lv_obj_t *key_labels[3];
 };
 
 struct KeypadCtx {
@@ -234,7 +239,6 @@ extern lv_obj_t *g_test_hint_label;
 extern lv_obj_t *g_test_status_label;
 extern lv_obj_t *g_page_subtitle_label;
 extern lv_obj_t *g_module_buttons[TEST_COUNT];
-extern lv_obj_t *g_touch_targets[5];
 extern lv_obj_t *g_shutdown_info;
 extern uint32_t g_auto_advance_at;
 
@@ -262,16 +266,19 @@ extern TestResult g_results[TEST_COUNT];
 extern const TestCaseDescriptor g_tests[TEST_COUNT];
 extern const char *kQuickKeyTargets;
 extern const char *kDeepKeyTargets;
-extern const int kTouchTargetPos[5][2];
 extern const int kMotorEffects[3];
 extern const int kDeepMenuMap[9];
 
 int hyn_touch_init(void);
 uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_point);
+bool hyn_touch_get_key_state(uint8_t key_id);
+bool hyn_touch_get_key_seen(uint8_t key_id);
+void hyn_touch_clear_key_seen(void);
 void hyn_sleep(void);
 
 const char *status_text(TestStatus status);
 const char *status_badge(TestStatus status);
+bool is_quick_test_case(int test_id);
 void request_full_refresh();
 void shared_spi_deselect_all();
 bool init_spi_if_needed();
@@ -287,6 +294,7 @@ bool init_sd_if_needed();
 bool init_modem_if_needed();
 bool init_lora_if_needed();
 bool init_ble_if_needed();
+void stop_ble_activity();
 void route_audio_to_es8311(bool enable_amp);
 void route_audio_to_modem(bool enable_amp);
 void set_power_pin(uint8_t pin, bool high);
@@ -296,6 +304,7 @@ void boot_resume_if_needed();
 void set_test_status(TestCaseId id, TestStatus status, const char *note);
 void quick_auto_advance();
 void update_selected_count();
+int quick_test_count();
 int selected_test_count();
 int selected_progress_of(int test_id);
 String current_test_status_text();

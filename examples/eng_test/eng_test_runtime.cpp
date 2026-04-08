@@ -33,7 +33,6 @@ lv_obj_t *g_test_hint_label = nullptr;
 lv_obj_t *g_test_status_label = nullptr;
 lv_obj_t *g_page_subtitle_label = nullptr;
 lv_obj_t *g_module_buttons[TEST_COUNT] = {};
-lv_obj_t *g_touch_targets[5] = {};
 lv_obj_t *g_shutdown_info = nullptr;
 uint32_t g_auto_advance_at = 0;
 
@@ -173,6 +172,10 @@ static void touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
     if (touched) {
         last_x = x;
         last_y = y;
+        g_touch_ctx.last_x = x;
+        g_touch_ctx.last_y = y;
+        g_touch_ctx.point_count = touched;
+        g_touch_ctx.has_point = true;
         data->state = LV_INDEV_STATE_PR;
     } else {
         data->state = LV_INDEV_STATE_REL;
@@ -226,7 +229,7 @@ static void init_lvgl_runtime()
     indev_drv.read_cb = touchpad_read;
     lv_indev_drv_register(&indev_drv);
 
-    lv_theme_t *theme = lv_theme_mono_init(disp, false, &lv_font_simsun_16_cjk);
+    lv_theme_t *theme = lv_theme_mono_init(disp, false, LV_FONT_DEFAULT);
     lv_disp_set_theme(disp, theme);
 }
 
@@ -252,14 +255,15 @@ bool init_display_stack()
 
 bool init_power_manager()
 {
-    Wire.beginTransmission(SY6970_SLAVE_ADDRESS);
+    Wire.beginTransmission(BQ25896_SLAVE_ADDRESS);
     int ret = Wire.endTransmission();
     if (ret == 0) {
-        PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, SY6970_SLAVE_ADDRESS);
-        PPM.setChargeTargetVoltage(4288);
-        PPM.setChargerConstantCurr(1024);
-        PPM.enableMeasure();
-        g_battery_ctx.charger_ready = true;
+        g_battery_ctx.charger_ready = PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, BQ25896_SLAVE_ADDRESS);
+        if (g_battery_ctx.charger_ready) {
+            PPM.setChargeTargetVoltage(4288);
+            PPM.setChargerConstantCurr(1024);
+            PPM.enableMeasure();
+        }
     } else {
         g_battery_ctx.charger_ready = false;
     }
@@ -423,16 +427,29 @@ bool init_lora_if_needed()
     return g_lora_ctx.initialized;
 }
 
+void stop_ble_activity()
+{
+    if (!BLEDevice::getInitialized()) {
+        return;
+    }
+    BLEDevice::stopAdvertising();
+    BLEScan *scan = BLEDevice::getScan();
+    if (scan) {
+        scan->clearResults();
+    }
+    g_ble_ctx.advertising = false;
+}
+
 bool init_ble_if_needed()
 {
     if (g_ble_ctx.initialized) {
         return true;
     }
-    if (BLEDevice::getInitialized()) {
-        BLEDevice::stopAdvertising();
-        BLEDevice::deinit(true);
+    if (!BLEDevice::getInitialized()) {
+        BLEDevice::init("TDeckPro-ENG");
+    } else {
+        stop_ble_activity();
     }
-    BLEDevice::init("TDeckPro-ENG");
     BLEAdvertising *advertising = BLEDevice::getAdvertising();
     BLEAdvertisementData adv_data;
     adv_data.setName("TDeckPro-ENG");
@@ -461,8 +478,7 @@ void persist_for_sleep()
 static void power_down_before_sleep()
 {
     if (g_ble_ctx.initialized && BLEDevice::getInitialized()) {
-        BLEDevice::stopAdvertising();
-        BLEDevice::deinit(true);
+        stop_ble_activity();
     }
     WiFi.mode(WIFI_OFF);
 
@@ -567,10 +583,21 @@ void update_selected_count()
 {
     g_selected_count = 0;
     for (int i = 0; i < TEST_COUNT; ++i) {
-        if (g_results[i].enabled) {
+        if (is_quick_test_case(i) && g_results[i].enabled) {
             ++g_selected_count;
         }
     }
+}
+
+int quick_test_count()
+{
+    int count = 0;
+    for (int i = 0; i < TEST_COUNT; ++i) {
+        if (is_quick_test_case(i)) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 int selected_test_count()
@@ -582,7 +609,7 @@ int selected_progress_of(int test_id)
 {
     int progress = 0;
     for (int i = 0; i <= test_id; ++i) {
-        if (g_results[i].enabled) {
+        if (is_quick_test_case(i) && g_results[i].enabled) {
             ++progress;
         }
     }

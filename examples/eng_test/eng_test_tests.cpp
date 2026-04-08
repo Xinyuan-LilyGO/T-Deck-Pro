@@ -61,30 +61,32 @@ static void test_teardown_sleep(TestMode mode);
 TestResult g_results[TEST_COUNT] = {};
 
 const char *kQuickKeyTargets = "qa2pEU";
-const char *kDeepKeyTargets = "qwertyuiopasdfghjkl02zxcvbnm$E-*SU";
-const int kTouchTargetPos[5][2] = {
-    {20, 24}, {156, 24}, {20, 138}, {156, 138}, {88, 81},
-};
+const char *kDeepKeyTargets = "qwertyuiopasdfghjkl\b2zxcvbnm$EU0 SU";
 const int kMotorEffects[3] = {13, 47, 82};
 const int kDeepMenuMap[9] = {
     TEST_KEYPAD, TEST_GPS, TEST_AUDIO, TEST_WIFI, TEST_SD, TEST_MODEM, TEST_LORA, TEST_BLE, DEEP_ITEM_SHUTDOWN,
 };
 
+bool is_quick_test_case(int test_id)
+{
+    return test_id >= 0 && test_id < TEST_COUNT && test_id != TEST_SLEEP;
+}
+
 const TestCaseDescriptor g_tests[TEST_COUNT] = {
-    {TEST_EPD, "墨水屏", "EPD", "显示黑白图形与局部刷新计数。", false, test_setup_epd, test_poll_epd, test_teardown_epd},
-    {TEST_TOUCH, "触摸", "Touch", "点击四角与中心 5 个目标点。", false, test_setup_touch, test_poll_touch, test_teardown_touch},
-    {TEST_KEYPAD, "键盘", "Keypad", "快测按 q a 2 p E U，深测覆盖全部字符键。", true, test_setup_keypad, test_poll_keypad, test_teardown_keypad},
-    {TEST_GPS, "GPS", "GPS", "基础看串口活动与时间/卫星变化，深测看定位。", true, test_setup_gps, test_poll_gps, test_teardown_gps},
-    {TEST_AUDIO, "音频", "ES8311", "播放内置 WAV，人工确认有声音。", true, test_setup_audio, test_poll_audio, test_teardown_audio},
-    {TEST_BATTERY, "电池", "Battery", "读取 SY6970 与 BQ27220 数据。", false, test_setup_battery, test_poll_battery, test_teardown_battery},
-    {TEST_MOTOR, "马达", "Motor", "顺序播放 3 个震动效果。", false, test_setup_motor, test_poll_motor, test_teardown_motor},
-    {TEST_IMU, "陀螺仪", "IMU", "倾斜设备，检测姿态/陀螺变化。", false, test_setup_imu, test_poll_imu, test_teardown_imu},
-    {TEST_WIFI, "WiFi", "WiFi", "执行一次热点扫描。", true, test_setup_wifi, test_poll_wifi, test_teardown_wifi},
-    {TEST_SD, "SD 卡", "SD", "挂载、写入、回读、删除临时文件。", true, test_setup_sd, test_poll_sd, test_teardown_sd},
-    {TEST_MODEM, "4G 模块", "A7682E", "检查 AT 响应，深测进入 USB 串口桥。", true, test_setup_modem, test_poll_modem, test_teardown_modem},
-    {TEST_LORA, "LoRa", "SX1262", "检查 SX1262 初始化与基础收发模式。", true, test_setup_lora, test_poll_lora, test_teardown_lora},
-    {TEST_BLE, "蓝牙", "BLE", "固定广播并执行一次扫描。", true, test_setup_ble, test_poll_ble, test_teardown_ble},
-    {TEST_SLEEP, "休眠", "Sleep", "保存进度后进入深睡眠，按 BOOT 唤醒。", false, test_setup_sleep, test_poll_sleep, test_teardown_sleep},
+    {TEST_EPD, "E-Paper", "EPD", "Show black/white graphics and a partial refresh counter.", false, test_setup_epd, test_poll_epd, test_teardown_epd},
+    {TEST_TOUCH, "Touch Panel", "Touch", "Show screen coordinates and test the 3 touch keys.", false, test_setup_touch, test_poll_touch, test_teardown_touch},
+    {TEST_KEYPAD, "Keyboard", "Keypad", "Quick: press Q A ALT P ENT UP. Deep: cover every key.", true, test_setup_keypad, test_poll_keypad, test_teardown_keypad},
+    {TEST_GPS, "GPS", "GPS", "Quick: check serial activity and time/satellite changes. Deep: check fix.", true, test_setup_gps, test_poll_gps, test_teardown_gps},
+    {TEST_AUDIO, "Audio", "ES8311", "Play the built-in WAV and confirm sound manually.", true, test_setup_audio, test_poll_audio, test_teardown_audio},
+    {TEST_BATTERY, "Battery", "Battery", "Read BQ25896 and BQ27220 data.", false, test_setup_battery, test_poll_battery, test_teardown_battery},
+    {TEST_MOTOR, "Vibration Motor", "Motor", "Play 3 vibration effects in sequence.", false, test_setup_motor, test_poll_motor, test_teardown_motor},
+    {TEST_IMU, "IMU", "IMU", "Tilt the device and detect attitude/gyro changes.", false, test_setup_imu, test_poll_imu, test_teardown_imu},
+    {TEST_WIFI, "WiFi", "WiFi", "Run one AP scan.", true, test_setup_wifi, test_poll_wifi, test_teardown_wifi},
+    {TEST_SD, "SD Card", "SD", "Mount, write, read back, and delete a temp file.", true, test_setup_sd, test_poll_sd, test_teardown_sd},
+    {TEST_MODEM, "4G Modem", "A7682E", "Check AT response. Deep: enter USB serial bridge.", true, test_setup_modem, test_poll_modem, test_teardown_modem},
+    {TEST_LORA, "LoRa Radio", "SX1262", "Check SX1262 init and basic TX/RX mode.", true, test_setup_lora, test_poll_lora, test_teardown_lora},
+    {TEST_BLE, "Bluetooth", "BLE", "Advertise with a fixed name and run one scan.", true, test_setup_ble, test_poll_ble, test_teardown_ble},
+    {TEST_SLEEP, "Sleep", "Sleep", "Save progress, enter deep sleep, and wake with BOOT.", false, test_setup_sleep, test_poll_sleep, test_teardown_sleep},
 };
 
 static void copy_note(TestCaseId id, const char *note)
@@ -126,18 +128,35 @@ String current_test_status_text()
     String text;
     switch (g_current_test) {
         case TEST_EPD:
-            text = "阶段: ";
+            text = "Phase: ";
             text += g_display_ctx.phase + 1;
             break;
         case TEST_TOUCH:
-            text = "命中 ";
-            text += g_touch_ctx.hit_count;
-            text += "/5";
+            if (g_touch_ctx.has_point) {
+                text = "Touch: x=";
+                text += g_touch_ctx.last_x;
+                text += " y=";
+                text += g_touch_ctx.last_y;
+                text += " pts=";
+                text += g_touch_ctx.point_count;
+            } else {
+                text = "Touch: waiting for coordinates";
+            }
+            text += "\nKeys: ";
+            for (int i = 0; i < 3; ++i) {
+                if (i) {
+                    text += " ";
+                }
+                text += "K";
+                text += i + 1;
+                text += "=";
+                text += g_touch_ctx.key_down[i] ? "DOWN" : "REL";
+            }
             break;
         case TEST_KEYPAD: {
             int target = g_current_mode == TEST_MODE_QUICK ? strlen(kQuickKeyTargets) : strlen(kDeepKeyTargets);
             int hit = g_current_mode == TEST_MODE_QUICK ? g_keypad_ctx.quick_hits : g_keypad_ctx.deep_hits;
-            text = "已识别按键: ";
+            text = "Keys detected: ";
             text += hit;
             text += "/";
             text += target;
@@ -173,10 +192,10 @@ String current_test_status_text()
             break;
         }
         case TEST_AUDIO:
-            text = g_audio_ctx.initialized ? "ES8311 已初始化，已触发内置 WAV 播放。" : "ES8311 初始化失败。";
+            text = g_audio_ctx.initialized ? "ES8311 initialized. Built-in WAV playback started." : "ES8311 init failed.";
             break;
         case TEST_BATTERY:
-            text = "SY6970: ";
+            text = "BQ25896: ";
             text += g_battery_ctx.charger_ready ? "OK" : "FAIL";
             text += "\nBQ27220: ";
             text += g_battery_ctx.gauge_ready ? "OK" : "FAIL";
@@ -195,9 +214,9 @@ String current_test_status_text()
             }
             break;
         case TEST_MOTOR:
-            text = "正在轮播震动效果: ";
+            text = "Cycling vibration effect: ";
             text += kMotorEffects[g_motor_ctx.effect_index % 3];
-            text += "\n人工确认是否有明显震动。";
+            text += "\nConfirm clear vibration manually.";
             break;
         case TEST_IMU: {
             float x = 0, y = 0, z = 0;
@@ -219,7 +238,7 @@ String current_test_status_text()
             text = g_wifi_ctx.summary;
             break;
         case TEST_SD:
-            text = g_sd_ctx.mounted ? "SD 挂载成功。" : "SD 挂载失败。";
+            text = g_sd_ctx.mounted ? "SD mounted." : "SD mount failed.";
             if (g_sd_ctx.mounted) {
                 text += "\nTotal=";
                 text += g_sd_ctx.total_mb;
@@ -232,7 +251,7 @@ String current_test_status_text()
             text = g_modem_ctx.summary;
             break;
         case TEST_LORA:
-            text = g_lora_ctx.initialized ? "SX1262 初始化成功。" : "SX1262 初始化失败。";
+            text = g_lora_ctx.initialized ? "SX1262 init succeeded." : "SX1262 init failed.";
             if (g_current_mode == TEST_MODE_DEEP) {
                 text += "\nmode=";
                 text += (lora_get_mode() == LORA_MODE_RECV ? "recv" : "send");
@@ -246,7 +265,7 @@ String current_test_status_text()
             text = g_ble_ctx.summary;
             break;
         case TEST_SLEEP:
-            text = "将在 1 秒后进入深睡眠。\n请按 BOOT 键唤醒设备。";
+            text = "Entering deep sleep in 1 second.\nPress BOOT to wake the device.";
             break;
         default:
             text = g_tests[g_current_test].summary_cn;
@@ -260,7 +279,7 @@ void refresh_test_page_text()
     if (g_current_page != PAGE_TEST || g_current_test < 0) {
         return;
     }
-    String status_line = "状态: ";
+    String status_line = "Status: ";
     status_line += status_text(g_results[g_current_test].status);
     if (g_results[g_current_test].note[0]) {
         status_line += " / ";
@@ -271,9 +290,15 @@ void refresh_test_page_text()
     }
     if (g_test_hint_label) {
         if (g_current_test == TEST_EPD) {
-            lv_label_set_text_fmt(g_test_hint_label, "局部刷新计数: %lu", (unsigned long)g_display_ctx.partial_count);
+            lv_label_set_text_fmt(g_test_hint_label, "Partial refresh count: %lu", (unsigned long)g_display_ctx.partial_count);
         } else if (g_current_test == TEST_TOUCH) {
-            lv_label_set_text_fmt(g_test_hint_label, "命中 %d/5", g_touch_ctx.hit_count);
+            int key_hit_count = 0;
+            for (int i = 0; i < 3; ++i) {
+                if (g_touch_ctx.key_hit[i]) {
+                    ++key_hit_count;
+                }
+            }
+            lv_label_set_text_fmt(g_test_hint_label, "Seen: screen %s, keys %d/3", g_touch_ctx.has_point ? "OK" : "--", key_hit_count);
         } else {
             lv_label_set_text(g_test_hint_label, status_line.c_str());
         }
@@ -322,11 +347,46 @@ static void test_teardown_epd(TestMode mode) { LV_UNUSED(mode); }
 static bool test_setup_touch(TestMode mode)
 {
     LV_UNUSED(mode);
-    memset(&g_touch_ctx, 0, sizeof(g_touch_ctx));
+    memset(g_touch_ctx.key_down, 0, sizeof(g_touch_ctx.key_down));
+    memset(g_touch_ctx.key_hit, 0, sizeof(g_touch_ctx.key_hit));
+    g_touch_ctx.last_x = 0;
+    g_touch_ctx.last_y = 0;
+    g_touch_ctx.point_count = 0;
+    g_touch_ctx.has_point = false;
+    hyn_touch_clear_key_seen();
     return g_touch_ready;
 }
 
-static void test_poll_touch(TestMode mode) { LV_UNUSED(mode); }
+static void test_poll_touch(TestMode mode)
+{
+    LV_UNUSED(mode);
+    int key_hit_count = 0;
+    for (int i = 0; i < 3; ++i) {
+        bool down = hyn_touch_get_key_state(i);
+        g_touch_ctx.key_down[i] = down;
+        if (down || hyn_touch_get_key_seen(i)) {
+            g_touch_ctx.key_hit[i] = true;
+        }
+        if (g_touch_ctx.key_hit[i]) {
+            ++key_hit_count;
+        }
+        if (g_touch_ctx.key_blocks[i]) {
+            lv_color_t color = down ? lv_color_black() : lv_color_white();
+            lv_color_t text_color = down ? lv_color_white() : lv_color_black();
+            lv_obj_set_style_bg_color(g_touch_ctx.key_blocks[i], color, LV_PART_MAIN);
+            lv_obj_set_style_text_color(g_touch_ctx.key_blocks[i], text_color, LV_PART_MAIN);
+            if (g_touch_ctx.key_labels[i]) {
+                lv_obj_set_style_text_color(g_touch_ctx.key_labels[i], text_color, LV_PART_MAIN);
+            }
+        }
+    }
+    if (g_touch_ctx.has_point && key_hit_count == 3 && g_results[TEST_TOUCH].status == TEST_STATUS_RUNNING) {
+        set_test_status(TEST_TOUCH, TEST_STATUS_PASS, "screen touch and 3 keys detected");
+        if (g_current_mode == TEST_MODE_QUICK) {
+            quick_auto_advance();
+        }
+    }
+}
 static void test_teardown_touch(TestMode mode) { LV_UNUSED(mode); }
 
 static bool test_setup_keypad(TestMode mode)
@@ -412,6 +472,9 @@ static void test_teardown_audio(TestMode mode)
 static bool test_setup_battery(TestMode mode)
 {
     LV_UNUSED(mode);
+    if (!g_battery_ctx.charger_ready && !g_battery_ctx.gauge_ready) {
+        init_power_manager();
+    }
     if (g_battery_ctx.charger_ready || g_battery_ctx.gauge_ready) {
         set_test_status(TEST_BATTERY, TEST_STATUS_PASS, "battery telemetry ready");
         if (g_current_mode == TEST_MODE_QUICK) {
@@ -419,6 +482,7 @@ static bool test_setup_battery(TestMode mode)
         }
         return true;
     }
+    copy_note(TEST_BATTERY, "BQ25896/BQ27220 not detected");
     return false;
 }
 
@@ -511,7 +575,7 @@ static bool test_setup_wifi(TestMode mode)
     g_wifi_ctx.start_ms = millis();
     WiFi.scanDelete();
     WiFi.scanNetworks(true, false);
-    g_wifi_ctx.summary = "扫描中...";
+    g_wifi_ctx.summary = "Scanning...";
     return true;
 }
 
@@ -528,7 +592,7 @@ static void test_poll_wifi(TestMode mode)
     if (state >= 0) {
         g_wifi_ctx.scan_done = true;
         g_wifi_ctx.scan_count = state;
-        g_wifi_ctx.summary = "扫描完成, AP 数量 = ";
+        g_wifi_ctx.summary = "Scan done, AP count = ";
         g_wifi_ctx.summary += state;
         int show = state > 6 ? 6 : state;
         for (int i = 0; i < show; ++i) {
@@ -592,11 +656,11 @@ static void test_teardown_sd(TestMode mode) { LV_UNUSED(mode); }
 
 static bool test_setup_modem(TestMode mode)
 {
-    g_modem_ctx.summary = "初始化中...";
+    g_modem_ctx.summary = "Initializing...";
     g_modem_ctx.start_ms = millis();
     bool ok = init_modem_if_needed();
     if (!ok) {
-        g_modem_ctx.summary = "A7682E AT 无响应。\n提示: 该测试默认需要接入电池。";
+        g_modem_ctx.summary = "A7682E AT no response.\nHint: this test normally requires battery power.";
         return false;
     }
     g_modem_ctx.signal_quality = modem.getSignalQuality();
@@ -605,8 +669,8 @@ static bool test_setup_modem(TestMode mode)
     g_modem_ctx.summary += g_modem_ctx.signal_quality;
     g_modem_ctx.summary += "\n";
     g_modem_ctx.summary += (mode == TEST_MODE_DEEP)
-        ? "USB 串口桥已开启，可直接发送 AT。"
-        : "基础快测只验证 AT 响应。";
+        ? "USB serial bridge is enabled. Send AT directly."
+        : "Quick test only verifies AT response.";
 
     if (mode == TEST_MODE_DEEP && a7682_handle) {
         vTaskResume(a7682_handle);
@@ -689,9 +753,9 @@ static bool test_setup_ble(TestMode mode)
     }
     g_ble_ctx.start_ms = millis();
     g_ble_ctx.phase = 0;
-    g_ble_ctx.summary = "广播已启动。";
+    g_ble_ctx.summary = "Advertising started.";
     if (mode == TEST_MODE_DEEP) {
-        g_ble_ctx.summary += "\n请用手机搜索名称: TDeckPro-ENG";
+        g_ble_ctx.summary += "\nSearch for name on your phone: TDeckPro-ENG";
     }
     return true;
 }
@@ -709,11 +773,11 @@ static void test_poll_ble(TestMode mode)
         BLEScanResults results = scan->start(mode == TEST_MODE_DEEP ? 4 : 2, false);
         g_ble_ctx.scan_done = true;
         g_ble_ctx.scan_count = results.getCount();
-        g_ble_ctx.summary = "广播 + 扫描完成\n发现设备数: ";
+        g_ble_ctx.summary = "Advertising + scan done\nDevices found: ";
         g_ble_ctx.summary += g_ble_ctx.scan_count;
         if (mode == TEST_MODE_DEEP && g_ble_ctx.scan_count > 0) {
             BLEAdvertisedDevice device = results.getDevice(0);
-            g_ble_ctx.summary += "\n首个设备: ";
+            g_ble_ctx.summary += "\nFirst device: ";
             g_ble_ctx.summary += device.getName().c_str();
         }
         scan->clearResults();
@@ -727,10 +791,7 @@ static void test_poll_ble(TestMode mode)
 static void test_teardown_ble(TestMode mode)
 {
     LV_UNUSED(mode);
-    if (BLEDevice::getInitialized()) {
-        BLEDevice::stopAdvertising();
-        BLEDevice::deinit(true);
-    }
+    stop_ble_activity();
     g_ble_ctx.initialized = false;
 }
 
