@@ -42,6 +42,8 @@ EspCodec codec;
 
 uint8_t *decodebuffer = NULL;
 int disp_refr_mode = DISP_REFR_MODE_PART;
+static lv_disp_t *factory_disp = NULL;
+static uint32_t disp_partial_refr_until_ms = 0;
 const char HelloWorld[] = BOARD_NAME;
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
@@ -72,8 +74,10 @@ static bool phone_call_user_hangup = false;
 static bool phone_clcc_query_pending = false;
 static bool phone_clcc_lines_seen = false;
 static volatile bool phone_test_audio_active = false;
+static uint8_t phone_test_audio_ok_count = 0;
 static uint32_t phone_call_start_ms = 0;
 static uint32_t phone_state_started_ms = 0;
+static uint32_t phone_test_audio_min_done_ms = 0;
 static uint32_t phone_test_audio_restore_ms = 0;
 static uint32_t phone_history_sequence = 0;
 static char phone_end_reason[UI_PHONE_STATUS_LEN] = {0};
@@ -91,6 +95,18 @@ static void epd_prepare_bus()
     digitalWrite(BOARD_SD_CS, HIGH);
     pinMode(BOARD_EPD_CS, OUTPUT);
     digitalWrite(BOARD_EPD_CS, HIGH);
+}
+
+static bool epd_area_is_full_screen(const lv_area_t *area)
+{
+    if (area == NULL) {
+        return false;
+    }
+
+    return area->x1 <= 0 &&
+           area->y1 <= 0 &&
+           area->x2 >= (LCD_HOR_SIZE - 1) &&
+           area->y2 >= (LCD_VER_SIZE - 1);
 }
 
 static uint32_t pack_lvgl_area_to_epd(const lv_color_t *color_p, uint32_t w, uint32_t h)
@@ -153,7 +169,15 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
     (void)pack_lvgl_area_to_epd(color_p, w, h);
 
     static int idx = 0;
+    const bool full_window = epd_area_is_full_screen(area);
+
     epd_prepare_bus();
+    // if(full_window) {
+    //     display.setFullWindow();
+    // } else {
+    //     display.setPartialWindow(area->x1, area->y1, w, h);
+    // }
+    
     if(disp_refr_mode == DISP_REFR_MODE_PART) {
         display.setPartialWindow(area->x1, area->y1, w, h);
     } else if(disp_refr_mode == DISP_REFR_MODE_FULL){
@@ -170,7 +194,7 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 #if FACTORY_RUNTIME_LOG
     Serial.printf("flush_timer_cb:%d, %s, x=%d, y=%d, w=%lu, h=%lu\n",
                   idx++,
-                  (disp_refr_mode == 0 ? "full" : "part"),
+                  (full_window ? "full" : "part"),
                   area->x1, area->y1,
                   (unsigned long)w, (unsigned long)h);
 #else
@@ -228,7 +252,7 @@ static void lvgl_init(void)
     // disp_drv.rounder_cb = display_driver_rounder_cb;
     disp_drv.full_refresh = 1;
 
-    lv_disp_drv_register(&disp_drv);
+    factory_disp = lv_disp_drv_register(&disp_drv);
 
     /*------------------
      * Touchpad
@@ -342,8 +366,10 @@ static void phone_snapshot_reset(bool available)
     phone_clcc_query_pending = false;
     phone_clcc_lines_seen = false;
     phone_test_audio_active = false;
+    phone_test_audio_ok_count = 0;
     phone_call_start_ms = 0;
     phone_state_started_ms = 0;
+    phone_test_audio_min_done_ms = 0;
     phone_test_audio_restore_ms = 0;
     phone_history_sequence = 0;
     memset(phone_end_reason, 0, sizeof(phone_end_reason));
@@ -523,6 +549,20 @@ static void phone_finalize_call(const char *result)
     phone_snapshot_set_state(UI_PHONE_STATE_IDLE, "", "Idle");
 }
 
+static void phone_finish_test_audio(void)
+{
+    if (!phone_test_audio_active) {
+        return;
+    }
+
+    phone_restore_audio();
+    phone_test_audio_active = false;
+    phone_test_audio_ok_count = 0;
+    phone_test_audio_min_done_ms = 0;
+    phone_test_audio_restore_ms = 0;
+    phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Idle");
+}
+
 static bool phone_queue_command(phone_cmd_type_t type, const char *number, bool enabled)
 {
     if (phone_cmd_queue == NULL) {
@@ -544,7 +584,7 @@ bool phone_runtime_dial(const char *number)
         return false;
     }
 
-    if (phone_snapshot_state() != UI_PHONE_STATE_IDLE) {
+    if (phone_snapshot_state() != UI_PHONE_STATE_IDLE || phone_test_audio_active) {
         return false;
     }
 
@@ -576,10 +616,12 @@ bool phone_runtime_play_test_digits(void)
     }
 
     phone_test_audio_active = true;
+    phone_test_audio_ok_count = 0;
     phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Testing 0-9");
     if (!phone_queue_command(PHONE_CMD_TEST_DIGITS, NULL, false)) {
         phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Idle");
         phone_test_audio_active = false;
+        phone_test_audio_ok_count = 0;
         return false;
     }
     return true;
@@ -595,7 +637,7 @@ void phone_runtime_set_debug_passthrough(bool enabled)
         return;
     }
 
-    if (!enabled || phone_snapshot_state() == UI_PHONE_STATE_IDLE) {
+    if (!enabled || (phone_snapshot_state() == UI_PHONE_STATE_IDLE && !phone_test_audio_active)) {
         (void)phone_queue_command(PHONE_CMD_DEBUG, NULL, enabled);
     }
 }
@@ -740,7 +782,9 @@ static void phone_handle_command(const phone_cmd_t *cmd)
         break;
     case PHONE_CMD_TEST_DIGITS:
         phone_enable_call_audio();
-        phone_test_audio_restore_ms = millis() + 7000U;
+        phone_test_audio_ok_count = 0;
+        phone_test_audio_min_done_ms = millis() + 1800U;
+        phone_test_audio_restore_ms = millis() + 3500U;
         phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Testing 0-9");
         phone_send_command_line("AT+CTTSPARAM=1,3,0,1,1,0");
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -795,6 +839,25 @@ static void phone_handle_serial_line(const char *line)
     if (strcmp(line, "NO CARRIER") == 0) {
         phone_handle_no_carrier();
         return;
+    }
+
+    if (phone_test_audio_active) {
+        if (strncmp(line, "+CTTS:", 6) == 0) {
+            phone_finish_test_audio();
+            return;
+        }
+
+        if (strcmp(line, "OK") == 0) {
+            if (phone_test_audio_ok_count < UINT8_MAX) {
+                phone_test_audio_ok_count++;
+            }
+            return;
+        }
+
+        if (strstr(line, "ERROR") != NULL) {
+            phone_finish_test_audio();
+            return;
+        }
     }
 
     if (strcmp(line, "OK") == 0 && phone_clcc_query_pending) {
@@ -878,11 +941,9 @@ static void a7682_task(void *param)
         if (phone_test_audio_active &&
             phone_test_audio_restore_ms > 0U &&
             state == UI_PHONE_STATE_IDLE &&
-            millis() >= phone_test_audio_restore_ms) {
-            phone_restore_audio();
-            phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Idle");
-            phone_test_audio_restore_ms = 0U;
-            phone_test_audio_active = false;
+            ((phone_test_audio_ok_count >= 2U && millis() >= phone_test_audio_min_done_ms) ||
+             millis() >= phone_test_audio_restore_ms)) {
+            phone_finish_test_audio();
         }
     }
 }
@@ -1138,6 +1199,15 @@ void loop()
     lv_task_handler();
     keypad_loop();
 
+    if (disp_partial_refr_until_ms > 0U &&
+        millis() >= disp_partial_refr_until_ms) {
+        lv_disp_t *disp = factory_disp ? factory_disp : lv_disp_get_default();
+        if (disp != NULL && disp->driver != NULL) {
+            disp->driver->full_refresh = 1;
+        }
+        disp_partial_refr_until_ms = 0U;
+    }
+
     delay(1);
 }
 
@@ -1146,7 +1216,22 @@ void loop()
  * *******************************************************************************/
 void disp_full_refr(void)
 {
+    lv_disp_t *disp = factory_disp ? factory_disp : lv_disp_get_default();
+    if (disp != NULL && disp->driver != NULL) {
+        disp->driver->full_refresh = 1;
+    }
+    disp_partial_refr_until_ms = 0U;
     disp_refr_mode = DISP_REFR_MODE_FULL;
+}
+
+void disp_partial_refr_for(uint32_t duration_ms)
+{
+    lv_disp_t *disp = factory_disp ? factory_disp : lv_disp_get_default();
+    if (disp != NULL && disp->driver != NULL) {
+        disp->driver->full_refresh = 0;
+    }
+    disp_refr_mode = DISP_REFR_MODE_PART;
+    disp_partial_refr_until_ms = millis() + duration_ms;
 }
 
 

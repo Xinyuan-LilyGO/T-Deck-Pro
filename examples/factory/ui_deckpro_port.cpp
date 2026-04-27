@@ -31,6 +31,11 @@ void ui_disp_full_refr(void)
 {
     disp_full_refr();
 }
+
+void ui_disp_partial_refr_for(uint32_t duration_ms)
+{
+    disp_partial_refr_for(duration_ms);
+}
 //************************************[ screen 0 ]****************************************** menu
 
 void ui_xl9555_power_on(uint8_t io)      { xl9555_io.digitalWrite(io, HIGH); }

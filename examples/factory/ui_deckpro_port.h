@@ -40,6 +40,7 @@ extern "C" {
  *                              GLOBAL PROTOTYPES
  * *******************************************************************************/
 void ui_disp_full_refr(void);
+void ui_disp_partial_refr_for(uint32_t duration_ms);
 
 // xl9555_io :
 // BOARD_XL9555_00_6609_EN   

@@ -1,4 +1,4 @@
-<h1 align = "center">🏆T-Deck-Pro MAX V0.1🏆</h1>
+<h1 align = "center">🏆T-Deck-Pro MAX 🏆</h1>
 
 <p> 
 <!-- <img src="https://img.shields.io/badge/ESP—IDF-5.1.1-ff3034" height="20px"></a> -->
@@ -8,11 +8,13 @@
 
 ![Build Status](https://github.com/Xinyuan-LilyGO/T-Deck-Pro/actions/workflows/platformio.yml/badge.svg?event=push)
 
-![alt text](./docs/README_img/image.png)
+| Front | Back |
+| :---: | :---: |
+| ![alt text](./docs/image_source/正面.png) | ![alt text](./docs/image_source/反面.png) |
 
 ## :zero: Version 🎁
 
-**T-Deck-Pro MAX V0.1** Revision Update Notes: 
+**T-Deck-Pro MAX** Revision Update Notes: 
 
 - Added the XL9555 IO expansion chip 
 
@@ -26,7 +28,7 @@
 
 ### 1、Version
 
-How to confirm that your device is `T-Deck-Pro MAX V0.1`?
+How to confirm that your device is `T-Deck-Pro MAX`?
 
 Download the [WireScan](./firmware/examples/WireScan.bin) firmware and then open the serial port to confirm.
 
@@ -39,7 +41,7 @@ How to download the firmware? - [click me](./firmware/)
 
 ## :one: Product 🎁
 
-|       H693       |      T-Deck-Pro MAX V0.1       |
+|       H693       |      T-Deck-Pro MAX            |
 | :--------------: | :----------------------------: |
 |       MCU        |            ESP32-S3            |
 |  Flash / PSRAM   |            16M / 8M            |
@@ -115,6 +117,7 @@ The sound is too weak. Set `IO06` of the `XL9555` to `HIGH` to enable the power 
 | When using an external antenna, LoRa operates as shown in the following diagram;<br><br>It is necessary to set `IO04` of `XL9555` to `HIGH`. <br><br>When `IO04` of `XL9555` is at `LOW` level, the internal antenna (the default mode) is used. |
 | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ![alt text](./docs/README_img/image-1.png) |
+
 
 ## :three: Quick Start 🎁
 
