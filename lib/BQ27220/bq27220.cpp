@@ -451,6 +451,10 @@ int16_t BQ27220::getCurrent(void)
 {
     return readRegU16(CommandCurrent);
 }
+int16_t BQ27220::getAverageCurrent(void)
+{
+    return readRegU16(CommandAverageCurrent);
+}
 bool BQ27220::getControlStatus(BQ27220ControlStatus *ctrl_sta)
 {
     (*ctrl_sta).full = readRegU16(CommandControl);

@@ -142,6 +142,7 @@ public:
     uint16_t getDeviceNumber(void);  // sub-commands
     uint16_t getVoltage(void);
     int16_t getCurrent(void);
+    int16_t getAverageCurrent(void);
     bool getControlStatus(BQ27220ControlStatus *ctrl_sta);
     bool getBatteryStatus(BQ27220BatteryStatus *batt_sta);
     bool getOperationStatus(BQ27220OperationStatus *oper_sta);

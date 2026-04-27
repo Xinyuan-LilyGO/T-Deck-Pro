@@ -228,11 +228,12 @@ static int cst66xx_updata_tpinfo(void)
     int ret = 0;
     int retry = 5;
     while(--retry){
+        ret = 0;
         //get all config info
         ret |= cst66xx_set_workmode(NOMAL_MODE,ENABLE);
         ret |= hyn_wr_reg(hyn_66xxdata,0xD0030000,0x80|4,buf,50);
         if(ret == 0 && buf[3]==0xCA && buf[2]==0xCA) break; 
-        mdelay(1);
+        mdelay(10);
         ret |= hyn_wr_reg(hyn_66xxdata,0xD0000400,4,buf,0);
     }
 

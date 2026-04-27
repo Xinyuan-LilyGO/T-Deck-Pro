@@ -1,5 +1,6 @@
 #include "hyn_core.h"
 #include "hyn_platform.h"
+#include "esp32-hal-i2c.h"
 
 
 
@@ -13,20 +14,11 @@
 
 esp_err_t hyn_i2c_init(u8 pin_sda ,u8 pin_scl)
 {
-   int i2c_master_port = I2C_MASTER_NUM;
+    if (i2cIsInit(I2C_MASTER_NUM)) {
+        return ESP_OK;
+    }
 
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = pin_sda,
-        .scl_io_num = pin_scl,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_MASTER_FREQ_HZ,
-    };
-
-    i2c_param_config(i2c_master_port, &conf);
-
-    return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+    return i2cInit(I2C_MASTER_NUM, pin_sda, pin_scl, I2C_MASTER_FREQ_HZ);
 }
 
 int hyn_write_data(struct hyn_ts_data *ts_data, u8 *buf, u8 reg_len, u16 len)
@@ -34,7 +26,7 @@ int hyn_write_data(struct hyn_ts_data *ts_data, u8 *buf, u8 reg_len, u16 len)
     int ret = 0;
     // ret = i2c_master_send(ts_data->salve_addr, buf, len);
     ret = i2c_master_write_to_device(I2C_MASTER_NUM, ts_data->salve_addr, buf, len, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
-    return ret < 0 ? -1:0;
+    return ret == ESP_OK ? 0 : -1;
 }
 
 int hyn_read_data(struct hyn_ts_data *ts_data,u8 *buf, u16 len)
@@ -42,7 +34,7 @@ int hyn_read_data(struct hyn_ts_data *ts_data,u8 *buf, u16 len)
     int ret = 0;
     //ret = i2c_master_recv(ts_data->salve_addr, buf, len);
     ret = i2c_master_read_from_device(I2C_MASTER_NUM, ts_data->salve_addr, buf, len, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
-    return ret < 0 ? -1:0;
+    return ret == ESP_OK ? 0 : -1;
 }
 
 int hyn_wr_reg(struct hyn_ts_data *ts_data, u32 reg_addr, u8 reg_len, u8 *rbuf, u16 rlen)
@@ -63,7 +55,7 @@ int hyn_wr_reg(struct hyn_ts_data *ts_data, u32 reg_addr, u8 reg_len, u8 *rbuf, 
     //     ret |= i2c_master_recv(ts_data->salve_addr, rbuf, rlen);
         ret |= i2c_master_read_from_device(I2C_MASTER_NUM, ts_data->salve_addr, rbuf, rlen, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
     }
-    return ret < 0 ? -1:0;
+    return ret == ESP_OK ? 0 : -1;
 }
 
 

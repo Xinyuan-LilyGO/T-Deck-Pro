@@ -1,13 +1,7 @@
-/**
- * @file      test_touchpad.h
- * @author    ShallowGreen123
- * @license   MIT
- * @copyright Copyright (c) 2023  Shenzhen Xin Yuan Electronic Technology Co., Ltd
- * @date      2024-05-27
- *
- */
-
-
+# 1 "C:\\Users\\lyy\\AppData\\Local\\Temp\\tmp7rw7xlol"
+#include <Arduino.h>
+# 1 "D:/dgx/code/0_lilygo/H693_T_Deck_Pro/examples/factory/factory.ino"
+# 11 "D:/dgx/code/0_lilygo/H693_T_Deck_Pro/examples/factory/factory.ino"
 #include <Arduino.h>
 #include "utilities.h"
 #include <GxEPD2_BW.h>
@@ -19,13 +13,11 @@
 #include "factory.h"
 #include "peripheral.h"
 #include <SensorWireHelper.h>
-// #include "wav_hex.h"
+
 
 #ifndef FACTORY_RUNTIME_LOG
 #define FACTORY_RUNTIME_LOG 0
 #endif
-
-#define FACTORY_BATTERY_DESIGN_CAPACITY_MAH 1400
 
 TinyGsm modem(SerialAT);
 TaskHandle_t a7682_handle;
@@ -33,8 +25,8 @@ TaskHandle_t a7682_handle;
 XPowersPPM PPM;
 BQ27220 bq27220;
 
-// TouchDrvCSTXXX touch;
-GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_EPD_CS, BOARD_EPD_DC, BOARD_EPD_RST, BOARD_EPD_BUSY)); // GDEQ031T10 240x320, UC8253, (no inking, backside mark KEGMO 3100)
+
+GxEPD2_BW<GxEPD2_310_GDEQ031T10, GxEPD2_310_GDEQ031T10::HEIGHT> display(GxEPD2_310_GDEQ031T10(BOARD_EPD_CS, BOARD_EPD_DC, BOARD_EPD_RST, BOARD_EPD_BUSY));
 ExtensionIOXL9555 xl9555_io;
 Adafruit_DRV2605 motor_drv;
 EspCodec codec;
@@ -44,14 +36,25 @@ int disp_refr_mode = DISP_REFR_MODE_PART;
 const char HelloWorld[] = BOARD_NAME;
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
-
-/*********************************************************************************
- *                              STATIC PROTOTYPES
- * *******************************************************************************/
+static void epd_prepare_bus();
+static uint32_t pack_lvgl_area_to_epd(const lv_color_t *color_p, uint32_t w, uint32_t h);
+static bool ink_screen_init();
+static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p);
+static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data);
+static void lvgl_init(void);
+static bool bq25896_init(void);
+static bool bq27220_init(void);
+static bool sd_care_init(void);
+static void a7682_task(void *param);
+static bool A7682E_init(void);
+void setup();
+void loop();
+void disp_full_refr(void);
+#line 49 "D:/dgx/code/0_lilygo/H693_T_Deck_Pro/examples/factory/factory.ino"
 static void epd_prepare_bus()
 {
-    // EPD, LoRa and SD share the SPI bus. Keep the other devices deselected
-    // before sending commands to the panel to avoid command corruption.
+
+
     pinMode(BOARD_LORA_CS, OUTPUT);
     digitalWrite(BOARD_LORA_CS, HIGH);
     pinMode(BOARD_SD_CS, OUTPUT);
@@ -87,14 +90,14 @@ static bool ink_screen_init()
 {
     epd_prepare_bus();
     display.init(115200, true, 2, false);
-    //Serial.println("helloWorld");
+
     display.setRotation(0);
     display.setFont(&FreeMonoBold9pt7b);
     if (display.epd2.WIDTH < 104) display.setFont(0);
     display.setTextColor(GxEPD_BLACK);
     int16_t tbx, tby; uint16_t tbw, tbh;
     display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
-    // center bounding box by transposition of origin:
+
     uint16_t x = ((display.width() - tbw) / 2) - tbx;
     uint16_t y = ((display.height() - tbh) / 2) - tby;
     display.setFullWindow();
@@ -132,8 +135,8 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         display.drawInvertedBitmap(area->x1, area->y1, decodebuffer, w, h, GxEPD_BLACK);
     }
     while (display.nextPage());
-    // display.hibernate();
-    
+
+
 #if FACTORY_RUNTIME_LOG
     Serial.printf("flush_timer_cb:%d, %s, x=%d, y=%d, w=%lu, h=%lu\n",
                   idx++,
@@ -146,10 +149,10 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 
     disp_refr_mode = DISP_REFR_MODE_PART;
 
-    // Serial.printf("x1=%d, y1=%d, x2=%d, y2=%d\n", area->x1, area->y1, area->x2, area->y2);
 
-    /*IMPORTANT!!!
-     *Inform the graphics library that you are ready with the flushing*/
+
+
+
     lv_disp_flush_ready(disp_drv);
 }
 
@@ -158,7 +161,7 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
     static lv_coord_t last_x = 0;
     static lv_coord_t last_y = 0;
 
-    // uint8_t touched = touch.getPoint(&last_x, &last_y, 1);
+
     uint8_t touched = hyn_touch_get_point(&last_x, &last_y, 1);
     if(touched) {
         data->state = LV_INDEV_STATE_PR;
@@ -169,7 +172,7 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
     } else {
         data->state = LV_INDEV_STATE_REL;
     }
-    /*Set the last pressed coordinates*/
+
     data->point.x = last_x;
     data->point.y = last_y;
 }
@@ -183,24 +186,24 @@ static void lvgl_init(void)
     lv_color_t *buf_2 = (lv_color_t *)ps_calloc(sizeof(lv_color_t), DISP_BUF_SIZE);
     lv_disp_draw_buf_init(&draw_buf_dsc_1, buf_1, buf_2, LCD_HOR_SIZE * LCD_VER_SIZE);
     decodebuffer = (uint8_t *)ps_calloc(sizeof(uint8_t), DISP_BUF_SIZE);
-    // lv_disp_draw_buf_init(&draw_buf, lv_disp_buf_p, NULL, DISP_BUF_SIZE);
+
 
     static lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res = LCD_HOR_SIZE;
     disp_drv.ver_res = LCD_VER_SIZE;
     disp_drv.flush_cb = disp_flush;
-    // disp_drv.render_start_cb = dips_render_start_cb;
+
     disp_drv.draw_buf = &draw_buf_dsc_1;
-    // disp_drv.rounder_cb = display_driver_rounder_cb;
+
     disp_drv.full_refresh = 1;
 
     lv_disp_drv_register(&disp_drv);
 
-    /*------------------
-     * Touchpad
-     * -----------------*/
-    /*Register a touchpad input device*/
+
+
+
+
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -211,40 +214,20 @@ static void lvgl_init(void)
 static bool bq25896_init(void)
 {
     int ret = 0;
-    // BQ25896 --- 0x6B
-    // ret = Wire.beginTransmission(BOARD_I2C_ADDR_BQ25896);
-    // ret = Wire.endTransmission();
-    // if (ret == 0)
-    // {
-    //     // battery_25896.begin();
-    //     PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, BOARD_I2C_ADDR_BQ25896);
-    //     // set battery charge voltage
-    //     PPM.setChargeTargetVoltage(4288);
-
-    //     // Set charge current
-    //     PPM.setChargerConstantCurr(1024);
-
-    //     // Enable measure
-    //     // PPM.enableMeasure();
-    //     PPM.disableMeasure();
-
-    //     return true;
-    // }
-
-    // SY6970 --- 0x6A
+# 233 "D:/dgx/code/0_lilygo/H693_T_Deck_Pro/examples/factory/factory.ino"
     Wire.beginTransmission(SY6970_SLAVE_ADDRESS);
     ret = Wire.endTransmission();
     if(ret == 0) {
         PPM.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, SY6970_SLAVE_ADDRESS);
-        // set battery charge voltage
+
         PPM.setChargeTargetVoltage(4288);
 
-        // Set charge current
+
         PPM.setChargerConstantCurr(1024);
 
-        // Enable measure
+
         PPM.enableMeasure();
-        // PPM.disableMeasure();
+
 
         return true;
     }
@@ -253,10 +236,9 @@ static bool bq25896_init(void)
 
 static bool bq27220_init(void)
 {
-    bq27220.setDefaultCapacity(FACTORY_BATTERY_DESIGN_CAPACITY_MAH);
     bool ret = bq27220.init();
-    // if(ret) 
-    //     bq27220.reset();
+
+
     return ret;
 }
 
@@ -299,12 +281,12 @@ static bool A7682E_init(void)
 {
     Serial.println("Place your board outside to catch satelite signal");
 
-    // Set module baud rate and UART pins
+
     SerialAT.begin(115200, SERIAL_8N1, BOARD_A7682E_TXD, BOARD_A7682E_RXD);
 
     Serial.println("Start modem...");
 
-    // power on
+
     digitalWrite(BOARD_A7682E_PWRKEY, LOW);
     delay(10);
     digitalWrite(BOARD_A7682E_PWRKEY, HIGH);
@@ -327,7 +309,7 @@ static bool A7682E_init(void)
             break;
         }
     }
-    
+
     Serial.println();
     delay(200);
 
@@ -372,27 +354,27 @@ void setup()
     setCpuFrequencyMhz(240);
     Serial.begin(115200);
 #if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
-    // Keep the UI responsive after the USB serial monitor is closed.
+
     Serial.setTxTimeoutMs(0);
 #endif
 
-    // LORA、SD、EPD use the same SPI, in order to avoid mutual influence;
-    // before powering on, all CS signals should be pulled high and in an unselected state;
+
+
     pinMode(BOARD_LORA_CS, OUTPUT);
     digitalWrite(BOARD_LORA_CS, HIGH);
-    pinMode(BOARD_LORA_RST, OUTPUT); 
+    pinMode(BOARD_LORA_RST, OUTPUT);
     digitalWrite(BOARD_LORA_RST, HIGH);
-    pinMode(BOARD_SD_CS, OUTPUT); 
+    pinMode(BOARD_SD_CS, OUTPUT);
     digitalWrite(BOARD_SD_CS, HIGH);
-    pinMode(BOARD_EPD_CS, OUTPUT); 
+    pinMode(BOARD_EPD_CS, OUTPUT);
     digitalWrite(BOARD_EPD_CS, HIGH);
 
-    // i2c devices
+
     Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
     Serial.printf(" -------------------------- I2C -------------------------- \n");
     SensorWireHelper::dumpDevices(Wire, Serial);
 
-    // XL9555 Init
+
     Serial.printf(" -------------------------- XL9555 -------------------------- \n");
     if (xl9555_io.init(Wire, BOARD_I2C_SDA, BOARD_I2C_SCL, XL9555_SLAVE_ADDRESS0)) {
         const uint8_t expands[] = {
@@ -413,13 +395,13 @@ void setup()
             xl9555_io.digitalWrite(pin, HIGH);
             delay(1);
         }
-        // LOW --- external antenna 
-        // HIGH --- internal antenna (default)
-        // xl9555_io.pinMode(BOARD_XL9555_04_LORA_SEL, OUTPUT);
-        // xl9555_io.digitalWrite(BOARD_XL9555_04_LORA_SEL, LOW);
 
-        // Ensure touch controller exits any "half-powered" state after a power cut:
-        // provide a deterministic reset pulse via XL9555 IO07 before touch init.
+
+
+
+
+
+
         xl9555_io.pinMode(BOARD_XL9555_07_TOUCH_RST, OUTPUT);
         xl9555_io.digitalWrite(BOARD_XL9555_07_TOUCH_RST, LOW);
         delay(20);
@@ -437,24 +419,24 @@ void setup()
     Serial.print("\tPORT1:0b");
     Serial.println(xl9555_io.readPort(ExtensionIOXL9555::PORT1), BIN);
 
-    // open backlight
+
     analogWrite(BOARD_EPD_BL, 50);
     analogWrite(BOARD_KEYBOARD_LED, 255);
 
-    // init motor
+
     Serial.printf(" -------------------------- DRV2605 -------------------------- \n");
     if(!motor_drv.begin()) {
-        // while (1) {
+
             Serial.println("Failed to find DRV2605 - Motor drive");
-            // delay(1000);
+
             Serial.println("Failed to find DRV2605 - Motor drive");
             Serial.println("Failed to find DRV2605 - Motor drive");
-        // }
+
     } else {
         motor_drv.selectLibrary(1);
         motor_drv.setMode(DRV2605_MODE_INTTRIG);
-        motor_drv.setWaveform(0, 13); // play effect
-        motor_drv.setWaveform(1, 0);      // end waveform
+        motor_drv.setWaveform(0, 13);
+        motor_drv.setWaveform(1, 0);
         motor_drv.go();
     }
 
@@ -467,39 +449,27 @@ void setup()
         Serial.println("Warning: Failed to find Codec");
     }
     codec.setPaPinCallback([](bool enable, void *user_data) {
-        //  HIGH : the headphones and speakers output the sound from A7682E.
-        //  LOW :  the headphones and speakers output the sound from ES8311.
+
+
         ((ExtensionIOXL9555 *)user_data)->digitalWrite(BOARD_XL9555_12_AUDIO_SEL, LOW);
         ((ExtensionIOXL9555 *)user_data)->digitalWrite(BOARD_XL9555_06_AMPLIFIER, HIGH);
     }, &xl9555_io);
-    codec.setVolume(50); // range: [0, 100]
-    // codec.playWAV((uint8_t*)wav_hex, wav_hex_len);
-
-    // Serial.printf(" ------------- SPIFFS ------------- \n");
-
-    // if(!SPIFFS.begin(true)){
-    //     Serial.println("SPIFFS Mount Failed");
-    //     return;
-    // }
-
-    // listDir(SPIFFS, "/", 0);
-    // Serial.println(" ------------- PERI ------------- ");
-
-    // SPI
+    codec.setVolume(50);
+# 486 "D:/dgx/code/0_lilygo/H693_T_Deck_Pro/examples/factory/factory.ino"
     SPI.begin(BOARD_SPI_SCK, BOARD_SPI_MISO, BOARD_SPI_MOSI);
 
-    // init peripheral
-    // touch.setPins(-1, BOARD_TOUCH_INT); // touch_rst connect the IO07 of the chip XL9555
+
+
     peri_init_st[E_PERI_INK_SCREEN] = ink_screen_init();
-    peri_init_st[E_PERI_LORA]       = lora_init();
-    // peri_init_st[E_PERI_TOUCH]      = touch.begin(Wire, BOARD_I2C_ADDR_TOUCH, BOARD_TOUCH_SDA, BOARD_TOUCH_SCL);
-    peri_init_st[E_PERI_KYEPAD]     = keypad_init(BOARD_I2C_ADDR_KEYBOARD);
-    peri_init_st[E_PERI_BQ25896]    = bq25896_init();
-    peri_init_st[E_PERI_BQ27220]    = bq27220_init();
-    peri_init_st[E_PERI_SD]         = sd_care_init();
-    peri_init_st[E_PERI_GPS]        = gps_init();
-    peri_init_st[E_PERI_BHI260AP]   = BHI260AP_init();
-    peri_init_st[E_PERI_A7682E]     = A7682E_init();
+    peri_init_st[E_PERI_LORA] = lora_init();
+
+    peri_init_st[E_PERI_KYEPAD] = keypad_init(BOARD_I2C_ADDR_KEYBOARD);
+    peri_init_st[E_PERI_BQ25896] = bq25896_init();
+    peri_init_st[E_PERI_BQ27220] = bq27220_init();
+    peri_init_st[E_PERI_SD] = sd_care_init();
+    peri_init_st[E_PERI_GPS] = gps_init();
+    peri_init_st[E_PERI_BHI260AP] = BHI260AP_init();
+    peri_init_st[E_PERI_A7682E] = A7682E_init();
 
     peri_init_st[E_PERI_TOUCH] = hyn_touch_init();
 
@@ -509,7 +479,7 @@ void setup()
 
     disp_full_refr();
 
-    // close backlight
+
     analogWrite(BOARD_EPD_BL, 0);
     analogWrite(BOARD_KEYBOARD_LED, 0);
 
@@ -526,12 +496,10 @@ void loop()
     delay(1);
 }
 
-/*********************************************************************************
- *                              GLOBAL PROTOTYPES
- * *******************************************************************************/
+
+
+
 void disp_full_refr(void)
 {
     disp_refr_mode = DISP_REFR_MODE_FULL;
 }
-
-

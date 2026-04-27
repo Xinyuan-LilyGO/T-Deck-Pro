@@ -7,10 +7,15 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/gpio.h"
+#include "esp_err.h"
 #include "esp_log.h"
 #include "hyn_core.h"
 #include "utilities.h"
 #include "ui_scr_mrg.h"
+
+#ifndef HYN_TOUCH_RUNTIME_LOG
+#define HYN_TOUCH_RUNTIME_LOG 0
+#endif
 
 #define CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN BOARD_TOUCH_SDA
 #define CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN BOARD_TOUCH_SCL
@@ -23,6 +28,9 @@ const static char *TAG = "[HYN]";
 static struct hyn_ts_data *hyn_data;
 static xQueueHandle gpio_evt_queue;
 static bool touch_press_flag = false;
+static bool touch_ready = false;
+static bool touch_key_pressed[3] = {false, false, false};
+static bool touch_key_seen[3] = {false, false, false};
 
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
@@ -57,12 +65,14 @@ static void touch_int_handler(void *arg)
                     if (hyn_data->plat_data.reverse_y)
                         hyn_data->rp_buf.pos_info[i].pos_y = hyn_data->plat_data.y_resolution - hyn_data->rp_buf.pos_info[i].pos_y;
                 }
+#if HYN_TOUCH_RUNTIME_LOG
                 printf("ret:%d num:%d xy:", ret, hyn_data->rp_buf.rep_num);
                 for (int i = 0; i < hyn_data->rp_buf.rep_num; i++)
                 {
                     printf("(%d,%d) ", hyn_data->rp_buf.pos_info[i].pos_x, hyn_data->rp_buf.pos_info[i].pos_y);
                 }
                 printf("\n");
+#endif
             }
             hyn_data->rp_buf.report_need = REPORT_NONE;
         }
@@ -73,6 +83,10 @@ uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_poin
 {
     uint32_t io_num;
 
+    if (!touch_ready || !hyn_data || !x_array || !y_array || get_point == 0) {
+        return 0;
+    }
+
     // if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY))
     // {
     if(touch_press_flag) {
@@ -82,12 +96,14 @@ uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_poin
     }
 
     int ret;
+    uint8_t point_count = 0;
     hyn_data->hyn_irq_flg = 1;
     if (hyn_data->work_mode < DIFF_MODE)
     {
         ret = hyn_data->hyn_fuc_used->tp_report(); // Read point
+        point_count = (hyn_data->rp_buf.report_need & REPORT_POS) ? hyn_data->rp_buf.rep_num : 0;
 
-        for (u8 i = 0; i < hyn_data->rp_buf.rep_num; i++)
+        for (u8 i = 0; i < point_count; i++)
         { // Modify the coordinate origin according to the configuration
             if (hyn_data->plat_data.swap_xy)
             {
@@ -101,7 +117,7 @@ uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_poin
                 hyn_data->rp_buf.pos_info[i].pos_y = hyn_data->plat_data.y_resolution - hyn_data->rp_buf.pos_info[i].pos_y;
         }
         // printf("ret:%d num:%d xy:", ret, hyn_data->rp_buf.rep_num);
-        for (int i = 0; i < hyn_data->rp_buf.rep_num; i++)
+        for (int i = 0; i < point_count; i++)
         {
             if(i < get_point)
             {
@@ -112,25 +128,49 @@ uint8_t hyn_touch_get_point(int16_t *x_array, int16_t *y_array, uint8_t get_poin
         }
         // printf("\n");
     }
+    bool has_key_report = (hyn_data->rp_buf.report_need & REPORT_KEY) != 0;
     hyn_data->rp_buf.report_need = REPORT_NONE;
+#if HYN_TOUCH_RUNTIME_LOG
     printf("key_id:%d, key_st:%d\n", hyn_data->rp_buf.key_id, hyn_data->rp_buf.key_state);
+#endif
 
     /* 3 physical buttons (key_id 0~2) - on press, pop current screen to go back */
-    static bool key_pressed[3] = {false, false, false};
-    if (hyn_data->rp_buf.key_id >= 0 && hyn_data->rp_buf.key_id < 3) {
+    if (has_key_report && hyn_data->rp_buf.key_id >= 0 && hyn_data->rp_buf.key_id < 3) {
         int kid = hyn_data->rp_buf.key_id;
         if (hyn_data->rp_buf.key_state == 1) {
-            if (!key_pressed[kid]) {
-                key_pressed[kid] = true;
+            touch_key_seen[kid] = true;
+            if (!touch_key_pressed[kid]) {
+                touch_key_pressed[kid] = true;
                 scr_mgr_pop(false);
             }
         } else {
-            key_pressed[kid] = false;
+            touch_key_pressed[kid] = false;
         }
     }
 
-    return hyn_data->rp_buf.rep_num;
+    return point_count;
     // }
+}
+
+bool hyn_touch_get_key_state(uint8_t key_id)
+{
+    if (key_id >= 3) {
+        return false;
+    }
+    return touch_key_pressed[key_id];
+}
+
+bool hyn_touch_get_key_seen(uint8_t key_id)
+{
+    if (key_id >= 3) {
+        return false;
+    }
+    return touch_key_seen[key_id];
+}
+
+void hyn_touch_clear_key_seen(void)
+{
+    memset(touch_key_seen, 0, sizeof(touch_key_seen));
 }
 
 int hyn_touch_init(void)
@@ -139,6 +179,10 @@ int hyn_touch_init(void)
     static struct hyn_ts_data ts_data;
     memset((void *)&ts_data, 0, sizeof(ts_data));
     hyn_data = &ts_data;
+    touch_ready = false;
+    touch_press_flag = false;
+    memset(touch_key_pressed, 0, sizeof(touch_key_pressed));
+    memset(touch_key_seen, 0, sizeof(touch_key_seen));
     ESP_LOGI(TAG, HYN_DRIVER_VERSION);
 
     /*************************************************************/
@@ -170,7 +214,11 @@ int hyn_touch_init(void)
     }
 
     // 初始化I2c master ,配置速率、master addr
-    hyn_i2c_init(CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN, CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN);
+    esp_err_t i2c_ret = hyn_i2c_init(CONFIG_EXAMPLE_TOUCH_I2C_SDA_PIN, CONFIG_EXAMPLE_TOUCH_I2C_SCL_PIN);
+    if (i2c_ret != ESP_OK) {
+        ESP_LOGE(TAG, "I2C init failed: %s", esp_err_to_name(i2c_ret));
+        return 0;
+    }
 
     // Touch chip initialization
     for (int i = 0; i < ARRAY_SIZE(support_touch_list); i++)
@@ -179,7 +227,9 @@ int hyn_touch_init(void)
         ret = hyn_data->hyn_fuc_used->tp_chip_init(hyn_data);
         if (!ret)
         {
+#if HYN_TOUCH_RUNTIME_LOG
             printf("hyn_sleep = %p\n", hyn_data->hyn_fuc_used->tp_supend);
+#endif
             ESP_LOGI(TAG, "Touch init SUCCEED");
             ESP_LOGI(TAG, "IC_info fw_project_id:%lx", hyn_data->hw_info.fw_project_id);
             ESP_LOGI(TAG, "ictype:[%lx]", hyn_data->hw_info.fw_chip_type);
@@ -190,7 +240,7 @@ int hyn_touch_init(void)
     if (ret)
     {
         ESP_LOGE(TAG, "I2c NAk");
-        // return;
+        return 0;
     }
 
     // 配置 int脚为 输入pull up，开启gpio 下降沿中断
@@ -208,12 +258,18 @@ int hyn_touch_init(void)
     // hook isr handler for specific gpio pin
     gpio_isr_handler_add((gpio_num_t)hyn_data->plat_data.irq_gpio, gpio_isr_handler, (void *)hyn_data->plat_data.irq_gpio);
 
-    return !ret;
+    touch_ready = true;
+    return 1;
 }
 
 void hyn_sleep(void)
 {
+    if (!touch_ready || !hyn_data || !hyn_data->hyn_fuc_used || !hyn_data->hyn_fuc_used->tp_supend) {
+        return;
+    }
+#if HYN_TOUCH_RUNTIME_LOG
     printf("hyn_sleep = %p\n", hyn_data->hyn_fuc_used->tp_supend);
+#endif
     hyn_data->hyn_fuc_used->tp_supend();
     delay(100);
     

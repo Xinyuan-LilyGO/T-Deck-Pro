@@ -22,11 +22,24 @@
 #define FONT_BOLD_MONO_SIZE_18 &Font_Mono_Bold_18
 #define FONT_BOLD_MONO_SIZE_19 &Font_Mono_Bold_19
 
+#if LV_FONT_SIMSUN_16_CJK
+#define FONT_LOW_BATTERY_POPUP &lv_font_simsun_16_cjk
+#else
+#define FONT_LOW_BATTERY_POPUP FONT_BOLD_MONO_SIZE_15
+#endif
+
+#define LOW_BATTERY_CHECK_PERIOD_MS        1000
+#define LOW_BATTERY_SHUTDOWN_DELAY_MS     (20UL * 1000UL)
+#define LOW_BATTERY_SHUTDOWN_PERCENT      5
+#define LOW_BATTERY_NOMINAL_VOLTAGE_MV    3700
+#define LOW_BATTERY_SHUTDOWN_VOLTAGE_MV   (LOW_BATTERY_NOMINAL_VOLTAGE_MV - 400)
+
 #define GLOBAL_BUF_LEN 30
 static char global_buf[GLOBAL_BUF_LEN];
 
 static lv_timer_t *touch_chk_timer = NULL;
 static lv_timer_t *taskbar_update_timer = NULL;
+static lv_timer_t *low_battery_timer = NULL;
 static lv_obj_t *label_list[10] = {0};
 uint16_t taskbar_statue[TASKBAR_ID_MAX] = {0};
 
@@ -2803,6 +2816,157 @@ static void menu_keypay_get_event(lv_timer_t *t)
     }
 }
 
+static lv_obj_t *low_battery_popup = NULL;
+static lv_obj_t *low_battery_countdown_label = NULL;
+static uint32_t low_battery_shutdown_start_ms = 0;
+static bool low_battery_shutdown_pending = false;
+static bool low_battery_shutdown_started = false;
+
+static bool low_battery_is_power_connected(void)
+{
+    if(ui_test_get(E_PERI_BQ25896)) {
+        if(ui_battery_25896_is_vbus_in() || ui_batt_25896_is_chg()) {
+            return true;
+        }
+    }
+
+    if(ui_battery_27220_is_vaild() && ui_battery_27220_get_input()) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool low_battery_should_shutdown(void)
+{
+    if(!ui_test_get(E_PERI_BQ25896) || low_battery_is_power_connected()) {
+        return false;
+    }
+
+    if(ui_battery_27220_is_vaild()) {
+        uint16_t percent = ui_battery_27220_get_percent();
+        uint16_t voltage_mv = ui_battery_27220_get_voltage();
+
+        if(percent <= LOW_BATTERY_SHUTDOWN_PERCENT) {
+            return true;
+        }
+
+        if(voltage_mv > 0 && voltage_mv <= LOW_BATTERY_SHUTDOWN_VOLTAGE_MV) {
+            return true;
+        }
+
+        return false;
+    }
+
+    float vbat = ui_batt_25896_get_vbat();
+    uint16_t vbat_mv = (uint16_t)(vbat * 1000.0f);
+    return vbat_mv > 0 && vbat_mv <= LOW_BATTERY_SHUTDOWN_VOLTAGE_MV;
+}
+
+static void low_battery_popup_update(uint32_t remain_sec)
+{
+    if(low_battery_countdown_label == NULL) {
+        return;
+    }
+
+    lv_label_set_text_fmt(low_battery_countdown_label, "%lus 后自动关机", remain_sec);
+}
+
+static void low_battery_popup_create(void)
+{
+    if(low_battery_popup) {
+        return;
+    }
+
+    low_battery_popup = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(low_battery_popup);
+    lv_obj_set_size(low_battery_popup, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_color(low_battery_popup, DECKPRO_COLOR_BG, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(low_battery_popup, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_add_flag(low_battery_popup, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(low_battery_popup, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *panel = lv_obj_create(low_battery_popup);
+    lv_obj_remove_style_all(panel);
+    lv_obj_set_size(panel, lv_pct(85), 110);
+    lv_obj_center(panel);
+    lv_obj_set_style_pad_all(panel, 10, LV_PART_MAIN);
+    lv_obj_set_style_radius(panel, 6, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(panel, DECKPRO_COLOR_BG, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(panel, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(panel, DECKPRO_COLOR_FG, LV_PART_MAIN);
+    lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *msg_label = lv_label_create(panel);
+    lv_obj_set_width(msg_label, lv_pct(100));
+    lv_obj_set_style_text_font(msg_label, FONT_LOW_BATTERY_POPUP, LV_PART_MAIN);
+    lv_obj_set_style_text_color(msg_label, DECKPRO_COLOR_FG, LV_PART_MAIN);
+    lv_obj_set_style_text_align(msg_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(msg_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(msg_label, "电量过低，请充电");
+    lv_obj_align(msg_label, LV_ALIGN_TOP_MID, 0, 16);
+
+    low_battery_countdown_label = lv_label_create(panel);
+    lv_obj_set_width(low_battery_countdown_label, lv_pct(100));
+    lv_obj_set_style_text_font(low_battery_countdown_label, FONT_LOW_BATTERY_POPUP, LV_PART_MAIN);
+    lv_obj_set_style_text_color(low_battery_countdown_label, DECKPRO_COLOR_FG, LV_PART_MAIN);
+    lv_obj_set_style_text_align(low_battery_countdown_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(low_battery_countdown_label, LV_LABEL_LONG_CLIP);
+    lv_obj_align(low_battery_countdown_label, LV_ALIGN_BOTTOM_MID, 0, -16);
+}
+
+static void low_battery_popup_delete(void)
+{
+    if(low_battery_popup) {
+        lv_obj_del(low_battery_popup);
+        low_battery_popup = NULL;
+        low_battery_countdown_label = NULL;
+    }
+
+    low_battery_shutdown_pending = false;
+    low_battery_shutdown_started = false;
+}
+
+static void low_battery_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+
+    if(low_battery_is_power_connected()) {
+        low_battery_popup_delete();
+        return;
+    }
+
+    if(low_battery_shutdown_started) {
+        return;
+    }
+
+    if(!low_battery_shutdown_pending) {
+        if(!low_battery_should_shutdown()) {
+            return;
+        }
+
+        low_battery_shutdown_pending = true;
+        low_battery_shutdown_start_ms = lv_tick_get();
+        low_battery_popup_create();
+        low_battery_popup_update(LOW_BATTERY_SHUTDOWN_DELAY_MS / 1000UL);
+        return;
+    }
+
+    low_battery_popup_create();
+
+    uint32_t elapsed = lv_tick_elaps(low_battery_shutdown_start_ms);
+    if(elapsed >= LOW_BATTERY_SHUTDOWN_DELAY_MS) {
+        low_battery_popup_update(0);
+        low_battery_shutdown_started = true;
+        ui_shutdown_on();
+        return;
+    }
+
+    uint32_t remain_sec = (LOW_BATTERY_SHUTDOWN_DELAY_MS - elapsed + 999UL) / 1000UL;
+    low_battery_popup_update(remain_sec);
+}
+
 static void menu_taskbar_update_timer_cb(lv_timer_t *t)
 {
     static int sec = 0;
@@ -2859,6 +3023,9 @@ void ui_deckpro_entry(void)
 
     taskbar_update_timer = lv_timer_create(menu_taskbar_update_timer_cb, 1000, NULL);
     lv_timer_pause(taskbar_update_timer);
+
+    low_battery_timer = lv_timer_create(low_battery_timer_cb, LOW_BATTERY_CHECK_PERIOD_MS, NULL);
+    lv_timer_ready(low_battery_timer);
 
     scr_mgr_init();
 
