@@ -64,6 +64,7 @@ enum {
     SCREEN8_ID,
     SCREEN8_1_ID,
     SCREEN8_2_ID,
+    SCREEN8_3_ID,
     SCREEN9_ID,
     SCREEN10_ID,
     SCREEN11_ID,
@@ -111,13 +112,6 @@ typedef struct _ui_test {
     lv_obj_t *st;
     bool (*cb)(int);
 } ui_test_handle;
-
-typedef struct _ui_a7682 {
-    const char *name;
-    lv_obj_t *obj;
-    lv_obj_t *st;
-    bool (*cb)(const char *at_cmd);
-} ui_a7682_handle;
 
 typedef struct _ui_pcm5102 {
     const char *name;

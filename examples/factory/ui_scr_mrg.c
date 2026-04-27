@@ -244,6 +244,50 @@ bool scr_mgr_pop(bool anim)
     return false;
 }
 
+bool scr_mgr_replace_top(int id, bool anim)
+{
+    scr_card_t *tgt_card = scr_mgr_find_by_id(id);
+    scr_card_t *prev_item = NULL;
+    scr_card_t *stack_scr = NULL;
+    lv_obj_t *cur_obj = NULL;
+
+    if(tgt_card == NULL || scr_stack_top == NULL) {
+        return false;
+    }
+
+    cur_obj = scr_stack_top->obj;
+    prev_item = scr_stack_top->prev;
+    scr_mgr_remove(scr_stack_top);
+    lv_mem_free((void *)scr_stack_top);
+
+    stack_scr = lv_mem_alloc(sizeof(scr_card_t));
+    stack_scr->id = tgt_card->id;
+    stack_scr->obj = scr_mgr_default_style(tgt_card);
+    stack_scr->st = SCR_MGR_STATE_CREATED;
+    stack_scr->life = tgt_card->life;
+    stack_scr->prev = prev_item;
+    stack_scr->next = NULL;
+
+    if(prev_item) {
+        prev_item->next = stack_scr;
+    } else {
+        scr_stack_root = stack_scr;
+    }
+
+    scr_stack_top = stack_scr;
+    scr_mgr_active(stack_scr);
+
+    if(scr_anim_push != LV_SCR_LOAD_ANIM_NONE && anim) {
+        lv_scr_load_anim(stack_scr->obj, scr_anim_push, scr_anim_time, 0, true);
+    } else {
+        lv_scr_load(stack_scr->obj);
+        if(cur_obj) {
+            lv_obj_del(cur_obj);
+        }
+    }
+    return true;
+}
+
 // set anim
 void scr_mgr_set_anim(lv_scr_load_anim_t sw, lv_scr_load_anim_t push, lv_scr_load_anim_t pop)
 {

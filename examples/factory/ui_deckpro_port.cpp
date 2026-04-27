@@ -356,44 +356,35 @@ int ui_other_get_gyro(float *gyro_x, float *gyro_y, float *gyro_z)
     return 1;
 }
 
-//************************************[ screen 8 ]****************************************** A7682E
-bool ui_a7682_at_cb(const char *at_cmd)
+//************************************[ screen 8 ]****************************************** Phone
+bool ui_phone_dial(const char *number)
 {
-    printf("[A7682E] at cmd: %s\n", at_cmd);
-
-    modem.sendAT("+CTTSPARAM=1,3,0,1,1");
-
-    delay(100);
-
-    modem.sendAT("+CTTS=2,\"1234567890\"");
-
-    return false;
+    return phone_runtime_dial(number);
 }
 
-void ui_a7682_call(const char *number)
+bool ui_phone_answer(void)
 {
-    char buf[32];
-    lv_snprintf(buf, 32, "D%s;", number);
-    printf("[A7682E] at cmd: %s\n", buf);
-
-    modem.sendAT(buf);
-    delay(100);
+    return phone_runtime_answer();
 }
 
-void ui_a7682_hang_up(void)
+bool ui_phone_hang_up(void)
 {
-    modem.sendAT("+CHUP");
-    delay(100);
+    return phone_runtime_hang_up();
 }
 
-void ui_a7682_loop_resume(void)
+bool ui_phone_play_test_digits(void)
 {
-    vTaskResume(a7682_handle);
+    return phone_runtime_play_test_digits();
 }
 
-void ui_a7682_loop_suspend(void)
+bool ui_phone_get_snapshot(ui_phone_snapshot_t *snapshot)
 {
-    vTaskSuspend(a7682_handle);
+    return phone_runtime_get_snapshot(snapshot);
+}
+
+void ui_phone_set_debug_passthrough(bool enabled)
+{
+    phone_runtime_set_debug_passthrough(enabled);
 }
 
 //************************************[ screen 9 ]****************************************** Input

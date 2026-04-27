@@ -13,6 +13,7 @@
  * *******************************************************************************/
 #include "lvgl.h"
 
+#include "phone_runtime.h"
 #include "peripheral.h"
 #include "ui_deckpro.h"
 #include "utilities.h"
@@ -157,12 +158,13 @@ int ui_input_get_keypay_val(char *v);
 void ui_input_set_keypay_flag(void);
 int ui_other_get_gyro(float *gyro_x, float *gyro_y, float *gyro_z);
 
-// [ screen 8 ] --- A7682E
-bool ui_a7682_at_cb(const char *at_cmd);
-void ui_a7682_call(const char *number);
-void ui_a7682_hang_up(void);
-void ui_a7682_loop_resume(void);
-void ui_a7682_loop_suspend(void);
+// [ screen 8 ] --- Phone
+bool ui_phone_dial(const char *number);
+bool ui_phone_answer(void);
+bool ui_phone_hang_up(void);
+bool ui_phone_play_test_digits(void);
+bool ui_phone_get_snapshot(ui_phone_snapshot_t *snapshot);
+void ui_phone_set_debug_passthrough(bool enabled);
 
 // shutdown
 void ui_shutdown_on(void);

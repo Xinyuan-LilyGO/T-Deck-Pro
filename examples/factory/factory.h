@@ -14,6 +14,7 @@
 #include "SPI.h"
 #include "FS.h"
 #include "SPIFFS.h"
+#include "phone_runtime.h"
 #include "ExtensionIOXL9555.hpp"
 #include "Adafruit_DRV2605.h"
 #include "esp_codec.h"

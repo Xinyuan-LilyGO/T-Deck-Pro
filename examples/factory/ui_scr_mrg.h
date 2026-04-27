@@ -44,6 +44,7 @@ bool scr_mgr_register(int id, scr_lifecycle_t *card_life);
 bool scr_mgr_switch(int id, bool anim);
 bool scr_mgr_push(int id, bool anim);
 bool scr_mgr_pop(bool anim);
+bool scr_mgr_replace_top(int id, bool anim);
 
 // set anim
 void scr_mgr_set_anim(lv_scr_load_anim_t sw, lv_scr_load_anim_t push, lv_scr_load_anim_t pop);

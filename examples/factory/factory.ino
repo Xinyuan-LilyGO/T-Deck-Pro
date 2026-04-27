@@ -19,6 +19,7 @@
 #include "factory.h"
 #include "peripheral.h"
 #include <SensorWireHelper.h>
+#include <freertos/queue.h>
 // #include "wav_hex.h"
 
 #ifndef FACTORY_RUNTIME_LOG
@@ -44,6 +45,38 @@ int disp_refr_mode = DISP_REFR_MODE_PART;
 const char HelloWorld[] = BOARD_NAME;
 
 bool peri_init_st[E_PERI_NUM_MAX] = {0};
+
+typedef enum {
+    PHONE_CMD_DIAL = 0,
+    PHONE_CMD_ANSWER,
+    PHONE_CMD_HANGUP,
+    PHONE_CMD_TEST_DIGITS,
+    PHONE_CMD_DEBUG,
+} phone_cmd_type_t;
+
+typedef struct {
+    phone_cmd_type_t type;
+    char number[UI_PHONE_NUMBER_LEN];
+    bool enabled;
+} phone_cmd_t;
+
+static QueueHandle_t phone_cmd_queue = NULL;
+static portMUX_TYPE phone_snapshot_mux = portMUX_INITIALIZER_UNLOCKED;
+static ui_phone_snapshot_t phone_snapshot = {};
+static bool phone_audio_restore_valid = false;
+static int phone_audio_restore_sel = HIGH;
+static int phone_audio_restore_amp = HIGH;
+static bool phone_call_connected = false;
+static bool phone_call_incoming = false;
+static bool phone_call_user_hangup = false;
+static bool phone_clcc_query_pending = false;
+static bool phone_clcc_lines_seen = false;
+static volatile bool phone_test_audio_active = false;
+static uint32_t phone_call_start_ms = 0;
+static uint32_t phone_state_started_ms = 0;
+static uint32_t phone_test_audio_restore_ms = 0;
+static uint32_t phone_history_sequence = 0;
+static char phone_end_reason[UI_PHONE_STATUS_LEN] = {0};
 
 /*********************************************************************************
  *                              STATIC PROTOTYPES
@@ -278,26 +311,586 @@ static bool sd_care_init(void)
     return true;
 }
 
+static void phone_copy_text(char *dst, size_t dst_len, const char *src)
+{
+    if (dst == NULL || dst_len == 0U) {
+        return;
+    }
+
+    if (src == NULL) {
+        dst[0] = '\0';
+        return;
+    }
+
+    strncpy(dst, src, dst_len - 1U);
+    dst[dst_len - 1U] = '\0';
+}
+
+static void phone_snapshot_reset(bool available)
+{
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    memset(&phone_snapshot, 0, sizeof(phone_snapshot));
+    phone_snapshot.state = available ? UI_PHONE_STATE_IDLE : UI_PHONE_STATE_UNAVAILABLE;
+    phone_copy_text(phone_snapshot.status, sizeof(phone_snapshot.status), available ? "Idle" : "A7682E Failed");
+    phone_snapshot.debug_passthrough = false;
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+
+    phone_audio_restore_valid = false;
+    phone_call_connected = false;
+    phone_call_incoming = false;
+    phone_call_user_hangup = false;
+    phone_clcc_query_pending = false;
+    phone_clcc_lines_seen = false;
+    phone_test_audio_active = false;
+    phone_call_start_ms = 0;
+    phone_state_started_ms = 0;
+    phone_test_audio_restore_ms = 0;
+    phone_history_sequence = 0;
+    memset(phone_end_reason, 0, sizeof(phone_end_reason));
+}
+
+static ui_phone_state_t phone_snapshot_state(void)
+{
+    ui_phone_state_t state;
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    state = phone_snapshot.state;
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+    return state;
+}
+
+static void phone_snapshot_set_debug(bool enabled)
+{
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    phone_snapshot.debug_passthrough = enabled;
+    if (phone_snapshot.state == UI_PHONE_STATE_IDLE) {
+        phone_copy_text(phone_snapshot.status, sizeof(phone_snapshot.status), enabled ? "AT Debug" : "Idle");
+    }
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+}
+
+static void phone_snapshot_set_state(ui_phone_state_t state, const char *number, const char *status)
+{
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    phone_snapshot.state = state;
+    phone_snapshot.debug_passthrough = false;
+    if (number != NULL) {
+        phone_copy_text(phone_snapshot.current_number, sizeof(phone_snapshot.current_number), number);
+    }
+    if (status != NULL) {
+        phone_copy_text(phone_snapshot.status, sizeof(phone_snapshot.status), status);
+    }
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+}
+
+static void phone_snapshot_set_number(const char *number)
+{
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    phone_copy_text(phone_snapshot.current_number, sizeof(phone_snapshot.current_number), number);
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+}
+
+static void phone_snapshot_add_history(const char *direction, const char *result, const char *number)
+{
+    if (number == NULL || number[0] == '\0') {
+        return;
+    }
+
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    for (int i = UI_PHONE_HISTORY_MAX - 1; i > 0; --i) {
+        phone_snapshot.recent_calls[i] = phone_snapshot.recent_calls[i - 1];
+    }
+
+    memset(&phone_snapshot.recent_calls[0], 0, sizeof(phone_snapshot.recent_calls[0]));
+    phone_copy_text(phone_snapshot.recent_calls[0].number, sizeof(phone_snapshot.recent_calls[0].number), number);
+    phone_copy_text(phone_snapshot.recent_calls[0].direction, sizeof(phone_snapshot.recent_calls[0].direction), direction);
+    phone_copy_text(phone_snapshot.recent_calls[0].result, sizeof(phone_snapshot.recent_calls[0].result), result);
+    phone_snapshot.recent_calls[0].sequence = ++phone_history_sequence;
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+}
+
+static void phone_capture_audio_state(void)
+{
+    if (phone_audio_restore_valid) {
+        return;
+    }
+
+    phone_audio_restore_sel = xl9555_io.digitalRead(BOARD_XL9555_12_AUDIO_SEL);
+    phone_audio_restore_amp = xl9555_io.digitalRead(BOARD_XL9555_06_AMPLIFIER);
+    phone_audio_restore_valid = true;
+}
+
+static void phone_enable_call_audio(void)
+{
+    phone_capture_audio_state();
+    xl9555_io.digitalWrite(BOARD_XL9555_12_AUDIO_SEL, HIGH);
+    xl9555_io.digitalWrite(BOARD_XL9555_06_AMPLIFIER, HIGH);
+}
+
+static void phone_restore_audio(void)
+{
+    if (!phone_audio_restore_valid) {
+        return;
+    }
+
+    xl9555_io.digitalWrite(BOARD_XL9555_12_AUDIO_SEL, phone_audio_restore_sel);
+    xl9555_io.digitalWrite(BOARD_XL9555_06_AMPLIFIER, phone_audio_restore_amp);
+    phone_audio_restore_valid = false;
+}
+
+static void phone_reset_call_session(void)
+{
+    phone_call_connected = false;
+    phone_call_incoming = false;
+    phone_call_user_hangup = false;
+    phone_clcc_query_pending = false;
+    phone_clcc_lines_seen = false;
+    phone_call_start_ms = 0;
+    phone_state_started_ms = 0;
+    memset(phone_end_reason, 0, sizeof(phone_end_reason));
+}
+
+static void phone_set_end_reason(const char *reason)
+{
+    phone_copy_text(phone_end_reason, sizeof(phone_end_reason), reason);
+}
+
+static const char *phone_choose_end_reason(void)
+{
+    if (phone_end_reason[0] != '\0') {
+        return phone_end_reason;
+    }
+
+    if (phone_call_incoming && !phone_call_connected) {
+        return phone_call_user_hangup ? "Rejected" : "Missed";
+    }
+
+    if (!phone_call_incoming && !phone_call_connected) {
+        return phone_call_user_hangup ? "Canceled" : "Ended";
+    }
+
+    return "Ended";
+}
+
+static void phone_begin_outgoing_call(const char *number)
+{
+    phone_reset_call_session();
+    phone_enable_call_audio();
+    phone_call_incoming = false;
+    phone_state_started_ms = millis();
+    phone_snapshot_set_state(UI_PHONE_STATE_OUTGOING, number, "Dialing");
+}
+
+static void phone_begin_incoming_call(const char *number)
+{
+    if (phone_snapshot_state() == UI_PHONE_STATE_ACTIVE) {
+        return;
+    }
+
+    phone_reset_call_session();
+    phone_enable_call_audio();
+    phone_call_incoming = true;
+    phone_state_started_ms = millis();
+    phone_snapshot_set_state(UI_PHONE_STATE_INCOMING, number, "Incoming");
+}
+
+static void phone_mark_active_call(const char *number)
+{
+    if (!phone_call_connected) {
+        phone_call_connected = true;
+        phone_call_start_ms = millis();
+    }
+
+    phone_state_started_ms = millis();
+    phone_enable_call_audio();
+    phone_snapshot_set_state(UI_PHONE_STATE_ACTIVE, number, "In Call");
+}
+
+static void phone_finalize_call(const char *result)
+{
+    char number[UI_PHONE_NUMBER_LEN] = {0};
+    const char *direction = phone_call_incoming ? "Incoming" : "Outgoing";
+
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    phone_copy_text(number, sizeof(number), phone_snapshot.current_number);
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+
+    if (number[0] != '\0') {
+        phone_snapshot_add_history(direction, result, number);
+    }
+
+    phone_restore_audio();
+    phone_reset_call_session();
+    phone_snapshot_set_state(UI_PHONE_STATE_IDLE, "", "Idle");
+}
+
+static bool phone_queue_command(phone_cmd_type_t type, const char *number, bool enabled)
+{
+    if (phone_cmd_queue == NULL) {
+        return false;
+    }
+
+    phone_cmd_t cmd = {};
+    cmd.type = type;
+    cmd.enabled = enabled;
+    if (number != NULL) {
+        phone_copy_text(cmd.number, sizeof(cmd.number), number);
+    }
+    return xQueueSend(phone_cmd_queue, &cmd, 0) == pdPASS;
+}
+
+bool phone_runtime_dial(const char *number)
+{
+    if (number == NULL || number[0] == '\0') {
+        return false;
+    }
+
+    if (phone_snapshot_state() != UI_PHONE_STATE_IDLE) {
+        return false;
+    }
+
+    return phone_queue_command(PHONE_CMD_DIAL, number, false);
+}
+
+bool phone_runtime_answer(void)
+{
+    return phone_snapshot_state() == UI_PHONE_STATE_INCOMING &&
+           phone_queue_command(PHONE_CMD_ANSWER, NULL, false);
+}
+
+bool phone_runtime_hang_up(void)
+{
+    ui_phone_state_t state = phone_snapshot_state();
+    if (state != UI_PHONE_STATE_INCOMING &&
+        state != UI_PHONE_STATE_OUTGOING &&
+        state != UI_PHONE_STATE_ACTIVE) {
+        return false;
+    }
+
+    return phone_queue_command(PHONE_CMD_HANGUP, NULL, false);
+}
+
+bool phone_runtime_play_test_digits(void)
+{
+    if (phone_snapshot_state() != UI_PHONE_STATE_IDLE || phone_test_audio_active) {
+        return false;
+    }
+
+    phone_test_audio_active = true;
+    phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Testing 0-9");
+    if (!phone_queue_command(PHONE_CMD_TEST_DIGITS, NULL, false)) {
+        phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Idle");
+        phone_test_audio_active = false;
+        return false;
+    }
+    return true;
+}
+
+void phone_runtime_set_debug_passthrough(bool enabled)
+{
+    if (!enabled) {
+        phone_snapshot_set_debug(false);
+    }
+
+    if (phone_cmd_queue == NULL) {
+        return;
+    }
+
+    if (!enabled || phone_snapshot_state() == UI_PHONE_STATE_IDLE) {
+        (void)phone_queue_command(PHONE_CMD_DEBUG, NULL, enabled);
+    }
+}
+
+bool phone_runtime_get_snapshot(ui_phone_snapshot_t *snapshot)
+{
+    if (snapshot == NULL) {
+        return false;
+    }
+
+    portENTER_CRITICAL(&phone_snapshot_mux);
+    *snapshot = phone_snapshot;
+    if (phone_snapshot.state == UI_PHONE_STATE_ACTIVE && phone_call_start_ms > 0U) {
+        snapshot->call_duration_sec = (millis() - phone_call_start_ms) / 1000U;
+    } else {
+        snapshot->call_duration_sec = 0;
+    }
+    portEXIT_CRITICAL(&phone_snapshot_mux);
+
+    if (snapshot->status[0] == '\0') {
+        phone_copy_text(snapshot->status, sizeof(snapshot->status),
+                        snapshot->state == UI_PHONE_STATE_UNAVAILABLE ? "A7682E Failed" : "Idle");
+    }
+    return true;
+}
+
+static void phone_send_command_line(const char *line)
+{
+    if (line == NULL || line[0] == '\0') {
+        return;
+    }
+
+    SerialAT.print(line);
+    SerialAT.print("\r\n");
+}
+
+static void phone_send_dial_command(const char *number)
+{
+    SerialAT.print("ATD");
+    SerialAT.print(number);
+    SerialAT.print(";\r\n");
+}
+
+static void phone_handle_clip_line(const char *line)
+{
+    const char *first_quote = strchr(line, '"');
+    if (first_quote == NULL) {
+        return;
+    }
+
+    const char *second_quote = strchr(first_quote + 1, '"');
+    if (second_quote == NULL || second_quote <= first_quote + 1) {
+        return;
+    }
+
+    char number[UI_PHONE_NUMBER_LEN] = {0};
+    size_t copy_len = (size_t)(second_quote - (first_quote + 1));
+    if (copy_len >= sizeof(number)) {
+        copy_len = sizeof(number) - 1U;
+    }
+    memcpy(number, first_quote + 1, copy_len);
+    number[copy_len] = '\0';
+
+    if (number[0] == '\0') {
+        return;
+    }
+
+    phone_call_incoming = true;
+    phone_snapshot_set_number(number);
+    if (phone_snapshot_state() != UI_PHONE_STATE_ACTIVE) {
+        phone_snapshot_set_state(UI_PHONE_STATE_INCOMING, number, "Incoming");
+    }
+}
+
+static void phone_handle_clcc_line(const char *line)
+{
+    int idx = 0;
+    int dir = 0;
+    int stat = 0;
+    int mode = 0;
+    int mpty = 0;
+    int type = 0;
+    char number[UI_PHONE_NUMBER_LEN] = {0};
+    int matched = sscanf(line, "+CLCC: %d,%d,%d,%d,%d,\"%31[^\"]\",%d",
+                         &idx, &dir, &stat, &mode, &mpty, number, &type);
+
+    if (matched < 5) {
+        return;
+    }
+
+    phone_clcc_lines_seen = true;
+    if (matched >= 6 && number[0] != '\0') {
+        phone_snapshot_set_number(number);
+    }
+
+    switch (stat) {
+    case 0:
+        phone_call_incoming = (dir == 1);
+        phone_mark_active_call(number[0] != '\0' ? number : NULL);
+        break;
+    case 2:
+    case 3:
+        phone_call_incoming = false;
+        phone_state_started_ms = millis();
+        phone_snapshot_set_state(UI_PHONE_STATE_OUTGOING,
+                                 number[0] != '\0' ? number : NULL,
+                                 stat == 2 ? "Dialing" : "Calling");
+        break;
+    case 4:
+    case 5:
+        phone_call_incoming = true;
+        phone_state_started_ms = millis();
+        phone_snapshot_set_state(UI_PHONE_STATE_INCOMING,
+                                 number[0] != '\0' ? number : NULL,
+                                 "Incoming");
+        break;
+    default:
+        break;
+    }
+}
+
+static void phone_handle_command(const phone_cmd_t *cmd)
+{
+    if (cmd == NULL) {
+        return;
+    }
+
+    switch (cmd->type) {
+    case PHONE_CMD_DIAL:
+        phone_begin_outgoing_call(cmd->number);
+        phone_send_dial_command(cmd->number);
+        break;
+    case PHONE_CMD_ANSWER:
+        phone_enable_call_audio();
+        phone_state_started_ms = millis();
+        phone_snapshot_set_state(UI_PHONE_STATE_INCOMING, NULL, "Answering");
+        phone_send_command_line("ATA");
+        break;
+    case PHONE_CMD_HANGUP:
+        phone_call_user_hangup = true;
+        phone_send_command_line("AT+CHUP");
+        break;
+    case PHONE_CMD_TEST_DIGITS:
+        phone_enable_call_audio();
+        phone_test_audio_restore_ms = millis() + 7000U;
+        phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Testing 0-9");
+        phone_send_command_line("AT+CTTSPARAM=1,3,0,1,1,0");
+        vTaskDelay(pdMS_TO_TICKS(100));
+        phone_send_command_line("AT+CTTS=2,\"0 1 2 3 4 5 6 7 8 9\"");
+        break;
+    case PHONE_CMD_DEBUG:
+        phone_snapshot_set_debug(cmd->enabled);
+        break;
+    default:
+        break;
+    }
+}
+
+static void phone_handle_no_carrier(void)
+{
+    phone_finalize_call(phone_choose_end_reason());
+}
+
+static void phone_handle_serial_line(const char *line)
+{
+    if (line == NULL || line[0] == '\0') {
+        return;
+    }
+
+    if (strcmp(line, "RING") == 0) {
+        phone_begin_incoming_call(NULL);
+        return;
+    }
+
+    if (strncmp(line, "+CLIP:", 6) == 0) {
+        phone_handle_clip_line(line);
+        return;
+    }
+
+    if (strncmp(line, "+CLCC:", 6) == 0) {
+        phone_handle_clcc_line(line);
+        return;
+    }
+
+    if (strcmp(line, "BUSY") == 0) {
+        phone_set_end_reason("Busy");
+        phone_finalize_call("Busy");
+        return;
+    }
+
+    if (strcmp(line, "NO ANSWER") == 0) {
+        phone_set_end_reason("No Answer");
+        phone_finalize_call("No Answer");
+        return;
+    }
+
+    if (strcmp(line, "NO CARRIER") == 0) {
+        phone_handle_no_carrier();
+        return;
+    }
+
+    if (strcmp(line, "OK") == 0 && phone_clcc_query_pending) {
+        phone_clcc_query_pending = false;
+
+        if (!phone_clcc_lines_seen &&
+            phone_snapshot_state() != UI_PHONE_STATE_IDLE &&
+            phone_state_started_ms > 0U &&
+            (millis() - phone_state_started_ms) > 3000U) {
+            phone_finalize_call(phone_choose_end_reason());
+        }
+
+        phone_clcc_lines_seen = false;
+        return;
+    }
+}
+
 static void a7682_task(void *param)
 {
-    vTaskSuspend(a7682_handle);
-    while (1)
-    {
-        while (SerialAT.available())
-        {
-            SerialMon.write(SerialAT.read());
+    (void)param;
+
+    char line_buf[128] = {0};
+    size_t line_len = 0;
+    uint32_t last_clcc_ms = 0;
+
+    while (1) {
+        phone_cmd_t cmd = {};
+        if (xQueueReceive(phone_cmd_queue, &cmd, pdMS_TO_TICKS(20)) == pdPASS) {
+            phone_handle_command(&cmd);
         }
-        while (SerialMon.available())
-        {
-            SerialAT.write(SerialMon.read());
+
+        bool debug_mode = false;
+        portENTER_CRITICAL(&phone_snapshot_mux);
+        debug_mode = phone_snapshot.debug_passthrough;
+        portEXIT_CRITICAL(&phone_snapshot_mux);
+
+        if (debug_mode) {
+            while (SerialAT.available()) {
+                SerialMon.write(SerialAT.read());
+            }
+            while (SerialMon.available()) {
+                SerialAT.write(SerialMon.read());
+            }
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
         }
-        delay(1);
+
+        while (SerialAT.available()) {
+            char ch = (char)SerialAT.read();
+            if (ch == '\r') {
+                continue;
+            }
+            if (ch == '\n') {
+                if (line_len > 0U) {
+                    line_buf[line_len] = '\0';
+                    phone_handle_serial_line(line_buf);
+                    line_len = 0;
+                }
+                continue;
+            }
+
+            if (line_len < (sizeof(line_buf) - 1U)) {
+                line_buf[line_len++] = ch;
+            } else {
+                line_len = 0;
+            }
+        }
+
+        ui_phone_state_t state = phone_snapshot_state();
+        if ((state == UI_PHONE_STATE_OUTGOING ||
+             state == UI_PHONE_STATE_INCOMING ||
+             state == UI_PHONE_STATE_ACTIVE) &&
+            (millis() - last_clcc_ms) > 1000U &&
+            !phone_clcc_query_pending) {
+            phone_clcc_query_pending = true;
+            phone_clcc_lines_seen = false;
+            phone_send_command_line("AT+CLCC");
+            last_clcc_ms = millis();
+        }
+
+        if (phone_test_audio_active &&
+            phone_test_audio_restore_ms > 0U &&
+            state == UI_PHONE_STATE_IDLE &&
+            millis() >= phone_test_audio_restore_ms) {
+            phone_restore_audio();
+            phone_snapshot_set_state(UI_PHONE_STATE_IDLE, NULL, "Idle");
+            phone_test_audio_restore_ms = 0U;
+            phone_test_audio_active = false;
+        }
     }
 }
 
 static bool A7682E_init(void)
 {
     Serial.println("Place your board outside to catch satelite signal");
+    phone_snapshot_reset(false);
 
     // Set module baud rate and UART pins
     SerialAT.begin(115200, SERIAL_8N1, BOARD_A7682E_TXD, BOARD_A7682E_RXD);
@@ -331,9 +924,31 @@ static bool A7682E_init(void)
     Serial.println();
     delay(200);
 
-    xTaskCreate(a7682_task, "a7682_handle", 1024 * 3, NULL, A7682E_PRIORITY, &a7682_handle);
+    if (retry >= retry_cnt) {
+        phone_snapshot_reset(false);
+        return false;
+    }
 
-    return (retry < retry_cnt);
+    modem.sendAT("+CLIP=1");
+    modem.waitResponse(1000);
+
+    phone_cmd_queue = xQueueCreate(6, sizeof(phone_cmd_t));
+    if (phone_cmd_queue == NULL) {
+        Serial.println("[A7682E] Command queue init failed");
+        phone_snapshot_reset(false);
+        return false;
+    }
+
+    phone_snapshot_reset(true);
+    if (xTaskCreate(a7682_task, "a7682_handle", 1024 * 4, NULL, A7682E_PRIORITY, &a7682_handle) != pdPASS) {
+        Serial.println("[A7682E] Runtime task init failed");
+        vQueueDelete(phone_cmd_queue);
+        phone_cmd_queue = NULL;
+        phone_snapshot_reset(false);
+        return false;
+    }
+
+    return true;
 }
 
 static void listDir(fs::FS &fs, const char * dirname, uint8_t levels){

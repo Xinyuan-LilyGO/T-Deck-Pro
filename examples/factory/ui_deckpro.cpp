@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include "ui_deckpro_port.h"
 #include "Arduino.h"
+#include <ctype.h>
 
 #define SETTING_PAGE_MAX_ITEM 7
 #define GET_BUFF_LEN(a) sizeof(a)/sizeof(a[0])
@@ -40,6 +41,7 @@ static char global_buf[GLOBAL_BUF_LEN];
 static lv_timer_t *touch_chk_timer = NULL;
 static lv_timer_t *taskbar_update_timer = NULL;
 static lv_timer_t *low_battery_timer = NULL;
+static lv_timer_t *phone_state_timer = NULL;
 static lv_obj_t *label_list[10] = {0};
 uint16_t taskbar_statue[TASKBAR_ID_MAX] = {0};
 
@@ -128,7 +130,7 @@ static struct menu_btn menu_btn_list[] =
     {SCREEN5_ID,  &img_test,    "Test",     95,     101},
     {SCREEN6_ID,  &img_batt,    "Battery",  167,    101},
     {SCREEN7_ID,  &img_touch,   "Input",    23,     189},
-    {SCREEN8_ID,  &img_A7682E,  "A7682E",   95,     189},
+    {SCREEN8_ID,  &img_A7682E,  "Phone",    95,     189},
     {SCREEN9_ID,  &img_lora,    "Shutdown", 167,    189},
     {SCREEN10_ID, &img_music,   "Music",    23,     13},  // Page two
     {SCREEN11_ID, &img_sleep,   "Sleep",    95,     13},  // 
@@ -2095,208 +2097,494 @@ static scr_lifecycle_t screen7 = {
 };
 #endif
 //************************************[ screen 8 ]****************************************** A7682E
-// --------------------- screen 8 --------------------- A7682E
+// --------------------- screen 8 --------------------- Phone
 #if 1
-static lv_obj_t *a7682_list = NULL;
-static lv_obj_t *a7682_page = NULL;
-static int a7682_num = 0;
-static int a7682_page_num = 0;
-static int a7682_curr_page = 0;
+static lv_obj_t *phone_dialer_ta = NULL;
+static lv_obj_t *phone_dialer_status = NULL;
+static lv_obj_t *phone_dialer_call_btn = NULL;
+static lv_obj_t *phone_dialer_del_btn = NULL;
+static lv_obj_t *phone_dialer_at_btn = NULL;
+static lv_obj_t *phone_dialer_test_btn = NULL;
+static lv_obj_t *phone_dialer_recent[UI_PHONE_HISTORY_MAX] = {0};
 
-bool ui_a7682_call_test(const char *param)
-{
-    scr_mgr_push(SCREEN8_1_ID, false);
-    return true;
-}
+static lv_obj_t *phone_call_status = NULL;
+static lv_obj_t *phone_call_number = NULL;
+static lv_obj_t *phone_call_timer = NULL;
 
-bool ui_a7682_at_test(const char *param)
-{
-    scr_mgr_push(SCREEN8_2_ID, false);
-    return true;
-}
+static lv_obj_t *phone_incoming_title = NULL;
+static lv_obj_t *phone_incoming_number = NULL;
 
-static ui_a7682_handle a7682_handle_list[] = 
-{
-    {"A7682 Audio", NULL, NULL, ui_a7682_at_cb},
-    {"Call test", NULL, NULL, ui_a7682_call_test},
-    {"AT test", NULL, NULL, ui_a7682_at_test},
+static lv_obj_t *phone_debug_label = NULL;
+
+static int phone_active_screen = -1;
+static bool phone_stack_active = false;
+static ui_phone_state_t phone_last_state = UI_PHONE_STATE_UNAVAILABLE;
+
+static const char *phone_keypad_map[] = {
+    "1", "2", "3", "\n",
+    "4", "5", "6", "\n",
+    "7", "8", "9", "\n",
+    "*", "0", "#", ""
 };
 
-static void a7682_item_create(int curr_apge);
-
-static void a7682_scr_event(lv_event_t *e)
+static void phone_set_button_enabled(lv_obj_t *btn, bool enabled)
 {
-    lv_obj_t *tgt = (lv_obj_t *)e->target;
-    ui_a7682_handle *h = (ui_a7682_handle *)e->user_data;
+    if (btn == NULL) {
+        return;
+    }
 
-    if(e->code == LV_EVENT_CLICKED) {
-        if(h->cb)
-            h->cb(h->name);
+    if (enabled) {
+        lv_obj_clear_state(btn, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_state(btn, LV_STATE_DISABLED);
     }
 }
 
-static void a7682_item_create(int curr_apge)
+static lv_obj_t *phone_action_button_create(lv_obj_t *parent, const char *text, lv_coord_t x,
+                                            lv_coord_t y, lv_coord_t w, bool filled,
+                                            lv_event_cb_t cb)
 {
-    printf("a7682_curr_page = %d\n", a7682_curr_page);
-    int start = (curr_apge * SETTING_PAGE_MAX_ITEM);
-    int end = start + SETTING_PAGE_MAX_ITEM;
-    if(end > a7682_num) end = a7682_num;
+    lv_obj_t *btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, w, 42);
+    lv_obj_align(btn, LV_ALIGN_CENTER, x, y);
+    lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_radius(btn, 8, LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn, DECKPRO_COLOR_FG, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(btn, filled ? DECKPRO_COLOR_FG : DECKPRO_COLOR_BG, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(btn, filled ? DECKPRO_COLOR_BG : DECKPRO_COLOR_FG, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
 
-    printf("start=%d, end=%d\n", start, end);
+    lv_obj_t *label = lv_label_create(btn);
+    lv_obj_center(label);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_color(label, filled ? DECKPRO_COLOR_BG : DECKPRO_COLOR_FG, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(label, FONT_BOLD_SIZE_15, LV_PART_MAIN);
 
-    for(int i = start; i < end; i++) {
-        ui_a7682_handle *h = &a7682_handle_list[i];
-        h->obj = lv_list_add_btn(a7682_list, NULL, h->name);
-        lv_obj_set_height(h->obj, 28);
-        // h->st = lv_label_create(h->obj);
-        // lv_obj_set_style_text_font(h->st, FONT_BOLD_SIZE_15, LV_PART_MAIN);
-        // lv_obj_align(h->st, LV_ALIGN_RIGHT_MID, 0, 0);
-        // lv_label_set_text_fmt(h->st, "%s", (h->get_cb() ? "ON" : "OFF"));
-        // style
-        lv_obj_set_style_text_font(h->obj, FONT_BOLD_SIZE_14, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(h->obj, DECKPRO_COLOR_BG, LV_PART_MAIN);
-        lv_obj_set_style_text_color(h->obj, DECKPRO_COLOR_FG, LV_PART_MAIN);
-        lv_obj_set_style_border_width(h->obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_border_width(h->obj, 1, LV_PART_MAIN | LV_STATE_PRESSED);
-        lv_obj_set_style_outline_width(h->obj, 3, LV_PART_MAIN | LV_STATE_PRESSED);
-        lv_obj_set_style_radius(h->obj, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_add_event_cb(h->obj, a7682_scr_event, LV_EVENT_CLICKED, (void *)h);
+    return btn;
+}
+
+static void phone_format_duration(uint32_t duration_sec, char *buf, size_t len)
+{
+    if (duration_sec >= 3600U) {
+        lv_snprintf(buf, len, "%02lu:%02lu:%02lu",
+                    duration_sec / 3600UL,
+                    (duration_sec / 60UL) % 60UL,
+                    duration_sec % 60UL);
+    } else {
+        lv_snprintf(buf, len, "%02lu:%02lu",
+                    duration_sec / 60UL,
+                    duration_sec % 60UL);
     }
 }
 
-static void a7682_page_switch_cb(lv_event_t *e)
+static void phone_history_to_text(const ui_phone_history_item_t *item, char *buf, size_t len)
 {
-    char opt = (int)e->user_data;
-    
-    if(a7682_num < SETTING_PAGE_MAX_ITEM) return;
-
-    int child_cnt = lv_obj_get_child_cnt(a7682_list);
-    
-    for(int i = 0; i < child_cnt; i++)
-    {
-        lv_obj_t *child = lv_obj_get_child(a7682_list, 0);
-        if(child)
-            lv_obj_del(child);
+    if (item == NULL || item->sequence == 0U) {
+        lv_snprintf(buf, len, "-");
+        return;
     }
 
-    if(opt == 'p')
-    {
-        a7682_curr_page = (a7682_curr_page < a7682_page_num) ? a7682_curr_page + 1 : 0;
-    }
-    else if(opt == 'n')
-    {
-        a7682_curr_page = (a7682_curr_page > 0) ? a7682_curr_page - 1 : a7682_page_num;
-    }
-
-    a7682_item_create(a7682_curr_page);
-    lv_label_set_text_fmt(a7682_page, "%d / %d", a7682_curr_page, a7682_page_num);
+    lv_snprintf(buf, len, "%s: %s (%s)", item->direction, item->number, item->result);
 }
 
-static void scr8_btn_event_cb(lv_event_t * e)
+static char phone_keypad_to_digit(char key)
 {
-    if(e->code == LV_EVENT_CLICKED){
+    char lower = (char)tolower((unsigned char)key);
+    if (lower >= '0' && lower <= '9') {
+        return lower;
+    }
+
+    switch (lower) {
+    case KEYPAD_KEY_UP: return '1';
+    case 'a':
+    case 'b':
+    case 'c': return '2';
+    case 'd':
+    case 'e':
+    case 'f': return '3';
+    case 'g':
+    case 'h':
+    case 'i': return '4';
+    case 'j':
+    case 'k':
+    case 'l': return '5';
+    case 'm':
+    case 'n':
+    case 'o': return '6';
+    case 'p':
+    case 'q':
+    case 'r':
+    case 's': return '7';
+    case 't':
+    case 'u':
+    case 'v': return '8';
+    case 'w':
+    case 'x':
+    case 'y':
+    case 'z': return '9';
+    case KEYPAD_KEY_ALT: return '*';
+    case KEYPAD_KEY_SYM: return '#';
+    default: return '\0';
+    }
+}
+
+static void phone_dialer_add_char(char c)
+{
+    if (phone_dialer_ta == NULL || c == '\0') {
+        return;
+    }
+
+    char txt[2] = {c, '\0'};
+    lv_textarea_add_text(phone_dialer_ta, txt);
+}
+
+static void phone_refresh_dialer(const ui_phone_snapshot_t *snapshot)
+{
+    if (snapshot == NULL || phone_dialer_status == NULL) {
+        return;
+    }
+
+    const char *status = snapshot->status;
+    bool idle_actions_enabled = snapshot->state == UI_PHONE_STATE_IDLE &&
+                                strcmp(status, "Testing 0-9") != 0;
+    if (snapshot->state == UI_PHONE_STATE_UNAVAILABLE) {
+        status = "A7682E Failed";
+    }
+
+    lv_label_set_text(phone_dialer_status, status);
+    phone_set_button_enabled(phone_dialer_call_btn,
+                             idle_actions_enabled &&
+                             phone_dialer_ta != NULL &&
+                             strlen(lv_textarea_get_text(phone_dialer_ta)) > 0U);
+    phone_set_button_enabled(phone_dialer_at_btn, idle_actions_enabled);
+    phone_set_button_enabled(phone_dialer_test_btn, idle_actions_enabled);
+
+    for (int i = 0; i < UI_PHONE_HISTORY_MAX; ++i) {
+        if (phone_dialer_recent[i] == NULL) {
+            continue;
+        }
+        char line[80] = {0};
+        phone_history_to_text(&snapshot->recent_calls[i], line, sizeof(line));
+        lv_label_set_text(phone_dialer_recent[i], line);
+    }
+}
+
+static void phone_refresh_call_screen(const ui_phone_snapshot_t *snapshot)
+{
+    if (snapshot == NULL || phone_call_status == NULL || phone_call_number == NULL || phone_call_timer == NULL) {
+        return;
+    }
+
+    lv_label_set_text(phone_call_status, snapshot->status[0] ? snapshot->status : "Calling");
+    lv_label_set_text(phone_call_number, snapshot->current_number[0] ? snapshot->current_number : "Unknown");
+
+    char timer_buf[16] = {0};
+    phone_format_duration(snapshot->call_duration_sec, timer_buf, sizeof(timer_buf));
+    lv_label_set_text(phone_call_timer, timer_buf);
+}
+
+static void phone_refresh_incoming(const ui_phone_snapshot_t *snapshot)
+{
+    if (snapshot == NULL || phone_incoming_title == NULL || phone_incoming_number == NULL) {
+        return;
+    }
+
+    lv_label_set_text(phone_incoming_title, "Incoming Call");
+    lv_label_set_text(phone_incoming_number, snapshot->current_number[0] ? snapshot->current_number : "Unknown");
+}
+
+static void phone_refresh_debug(const ui_phone_snapshot_t *snapshot)
+{
+    if (snapshot == NULL || phone_debug_label == NULL) {
+        return;
+    }
+
+    lv_label_set_text(phone_debug_label,
+                      "Serial bridge is active at 115200.\n"
+                      "Use the host serial monitor for AT commands.\n"
+                      "Leave this page to restore phone monitoring.");
+}
+
+static void phone_refresh_all(const ui_phone_snapshot_t *snapshot)
+{
+    phone_refresh_dialer(snapshot);
+    phone_refresh_call_screen(snapshot);
+    phone_refresh_incoming(snapshot);
+    phone_refresh_debug(snapshot);
+}
+
+static void phone_handle_dial_request(void)
+{
+    if (phone_dialer_ta == NULL) {
+        return;
+    }
+
+    const char *number = lv_textarea_get_text(phone_dialer_ta);
+    if (number != NULL && number[0] != '\0') {
+        (void)ui_phone_dial(number);
+    }
+}
+
+static void phone_back_btn_event_cb(lv_event_t *e)
+{
+    if (e->code == LV_EVENT_CLICKED) {
         scr_mgr_pop(false);
     }
 }
 
-static void create8(lv_obj_t *parent) 
+static void scr8_btn_event_cb(lv_event_t *e)
 {
-    if(ui_test_a7682e() == false)
-    {
-        lv_obj_t *back8_label = scr_back_btn_create(parent, ("A7682E"), scr8_btn_event_cb);
+    phone_back_btn_event_cb(e);
+}
+
+static void phone_dialer_keypad_event_cb(lv_event_t *e)
+{
+    if (e->code != LV_EVENT_VALUE_CHANGED || phone_dialer_ta == NULL) {
         return;
     }
 
-    a7682_list = lv_list_create(parent);
-    lv_obj_set_size(a7682_list, LV_HOR_RES, lv_pct(88));
-    lv_obj_align(a7682_list, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(a7682_list, DECKPRO_COLOR_BG, LV_PART_MAIN);
-    lv_obj_set_style_pad_top(a7682_list, 2, LV_PART_MAIN);
-    lv_obj_set_style_pad_row(a7682_list, 3, LV_PART_MAIN);
-    lv_obj_set_style_radius(a7682_list, 0, LV_PART_MAIN);
-    // lv_obj_set_style_outline_pad(a7682_list, 2, LV_PART_MAIN);
-    lv_obj_set_style_border_width(a7682_list, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_color(a7682_list, DECKPRO_COLOR_FG, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(a7682_list, 0, LV_PART_MAIN);
+    ui_phone_snapshot_t snapshot = {};
+    (void)ui_phone_get_snapshot(&snapshot);
+    if (snapshot.state != UI_PHONE_STATE_IDLE) {
+        return;
+    }
 
-    a7682_num = sizeof(a7682_handle_list) / sizeof(a7682_handle_list[0]);
-    a7682_page_num = a7682_num / SETTING_PAGE_MAX_ITEM;
-    a7682_item_create(a7682_curr_page);
-
-    lv_obj_t * ui_Button2 = lv_btn_create(parent);
-    lv_obj_set_width(ui_Button2, 71);
-    lv_obj_set_height(ui_Button2, 40);
-    lv_obj_set_x(ui_Button2, -70);
-    lv_obj_set_y(ui_Button2, 130);
-    lv_obj_set_align(ui_Button2, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_Button2, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_clear_flag(ui_Button2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_bg_color(ui_Button2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Button2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Button2, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_width(ui_Button2, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui_Button2, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Button2, 0, LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED);
-    lv_obj_set_style_shadow_width(ui_Button2, 0, LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED);
-    lv_obj_set_style_shadow_spread(ui_Button2, 0, LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED);
-    lv_obj_set_style_radius(ui_Button2, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_t * ui_Label1 = lv_label_create(ui_Button2);
-    lv_obj_set_width(ui_Label1, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label1, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label1, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label1, "Back");
-    lv_obj_set_style_text_color(ui_Label1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_t * ui_Button14 = lv_btn_create(parent);
-    lv_obj_set_width(ui_Button14, 71);
-    lv_obj_set_height(ui_Button14, 40);
-    lv_obj_set_x(ui_Button14, 70);
-    lv_obj_set_y(ui_Button14, 130);
-    lv_obj_set_align(ui_Button14, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_Button14, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_clear_flag(ui_Button14, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_bg_color(ui_Button14, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Button14, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Button14, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_width(ui_Button14, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_shadow_spread(ui_Button14, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Button14, 0, LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED);
-    lv_obj_set_style_shadow_width(ui_Button14, 0, LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED);
-    lv_obj_set_style_shadow_spread(ui_Button14, 0, LV_PART_MAIN | LV_STATE_CHECKED | LV_STATE_PRESSED);
-    lv_obj_set_style_radius(ui_Button14, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_t * ui_Label15 = lv_label_create(ui_Button14);
-    lv_obj_set_width(ui_Label15, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label15, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label15, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label15, "Next");
-    lv_obj_set_style_text_color(ui_Label15, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label15, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_add_event_cb(ui_Button2, a7682_page_switch_cb, LV_EVENT_CLICKED, (void*)'n');
-    lv_obj_add_event_cb(ui_Button14, a7682_page_switch_cb, LV_EVENT_CLICKED, (void*)'p');
-
-    a7682_page = lv_label_create(parent);
-    lv_obj_set_width(a7682_page, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(a7682_page, LV_SIZE_CONTENT);    /// 1
-    lv_obj_align(a7682_page, LV_ALIGN_BOTTOM_MID, 0, -23);
-    lv_label_set_text_fmt(a7682_page, "%d / %d", a7682_curr_page, a7682_page_num);
-    lv_obj_set_style_text_color(a7682_page, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(a7682_page, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_t *back8_label = scr_back_btn_create(parent, ("A7682E"), scr8_btn_event_cb);
+    lv_obj_t *btnm = (lv_obj_t *)lv_event_get_target(e);
+    uint32_t id = lv_btnmatrix_get_selected_btn(btnm);
+    const char *txt = lv_btnmatrix_get_btn_text(btnm, id);
+    if (txt != NULL && txt[0] != '\0') {
+        lv_textarea_add_text(phone_dialer_ta, txt);
+    }
 }
-static void entry8(void) 
+
+static void phone_dialer_call_event_cb(lv_event_t *e)
 {
-    ui_disp_full_refr();
-    ui_xl9555_audio_sel(HIGH);
+    if (e->code == LV_EVENT_CLICKED) {
+        phone_handle_dial_request();
+    }
 }
-static void exit8(void) {
+
+static void phone_dialer_del_event_cb(lv_event_t *e)
+{
+    if (e->code == LV_EVENT_CLICKED && phone_dialer_ta != NULL) {
+        lv_textarea_del_char(phone_dialer_ta);
+    }
+}
+
+static void phone_debug_open_event_cb(lv_event_t *e)
+{
+    if (e->code != LV_EVENT_CLICKED) {
+        return;
+    }
+
+    ui_phone_snapshot_t snapshot = {};
+    if (ui_phone_get_snapshot(&snapshot) && snapshot.state == UI_PHONE_STATE_IDLE) {
+        scr_mgr_push(SCREEN8_3_ID, false);
+    }
+}
+
+static void phone_test_digits_event_cb(lv_event_t *e)
+{
+    if (e->code != LV_EVENT_CLICKED) {
+        return;
+    }
+
+    ui_phone_snapshot_t snapshot = {};
+    if (ui_phone_get_snapshot(&snapshot) && snapshot.state == UI_PHONE_STATE_IDLE) {
+        (void)ui_phone_play_test_digits();
+    }
+}
+
+static void phone_answer_event_cb(lv_event_t *e)
+{
+    if (e->code == LV_EVENT_CLICKED) {
+        (void)ui_phone_answer();
+    }
+}
+
+static void phone_reject_event_cb(lv_event_t *e)
+{
+    if (e->code == LV_EVENT_CLICKED) {
+        (void)ui_phone_hang_up();
+    }
+}
+
+static void phone_end_call_event_cb(lv_event_t *e)
+{
+    if (e->code == LV_EVENT_CLICKED) {
+        (void)ui_phone_hang_up();
+    }
+}
+
+static void phone_handle_keyboard(void)
+{
+    if (phone_active_screen < SCREEN8_ID || phone_active_screen > SCREEN8_3_ID) {
+        return;
+    }
+
+    char key = '\0';
+    if (!ui_input_get_keypay_val(&key)) {
+        return;
+    }
+    ui_input_set_keypay_flag();
+
+    switch (phone_active_screen) {
+    case SCREEN8_ID:
+        if (key == KEYPAD_KEY_DEL) {
+            if (phone_dialer_ta) {
+                lv_textarea_del_char(phone_dialer_ta);
+            }
+        } else if (key == KEYPAD_KEY_ENT) {
+            phone_handle_dial_request();
+        } else {
+            char mapped = phone_keypad_to_digit(key);
+            phone_dialer_add_char(mapped);
+        }
+        break;
+    case SCREEN8_1_ID:
+        if (key == KEYPAD_KEY_DEL || key == KEYPAD_KEY_ENT) {
+            (void)ui_phone_hang_up();
+        }
+        break;
+    case SCREEN8_2_ID:
+        if (key == KEYPAD_KEY_DEL) {
+            (void)ui_phone_hang_up();
+        } else if (key == KEYPAD_KEY_ENT) {
+            (void)ui_phone_answer();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static void phone_state_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+
+    ui_phone_snapshot_t snapshot = {};
+    if (!ui_phone_get_snapshot(&snapshot)) {
+        return;
+    }
+
+    phone_handle_keyboard();
+    phone_refresh_all(&snapshot);
+
+    if (snapshot.state == UI_PHONE_STATE_INCOMING) {
+        if (!phone_stack_active) {
+            phone_stack_active = true;
+            scr_mgr_push(SCREEN8_2_ID, false);
+        }
+    } else if ((snapshot.state == UI_PHONE_STATE_OUTGOING || snapshot.state == UI_PHONE_STATE_ACTIVE) &&
+               !phone_stack_active &&
+               phone_active_screen != SCREEN8_3_ID) {
+        phone_stack_active = true;
+        scr_mgr_push(SCREEN8_1_ID, false);
+    }
+
+    if (snapshot.state == UI_PHONE_STATE_ACTIVE &&
+        phone_stack_active &&
+        phone_active_screen == SCREEN8_2_ID) {
+        scr_mgr_replace_top(SCREEN8_1_ID, false);
+    }
+
+    if ((snapshot.state == UI_PHONE_STATE_IDLE || snapshot.state == UI_PHONE_STATE_UNAVAILABLE) &&
+        phone_stack_active) {
+        phone_stack_active = false;
+        scr_mgr_pop(false);
+    }
+
+    phone_last_state = snapshot.state;
+}
+
+static void create8(lv_obj_t *parent)
+{
+    phone_dialer_ta = lv_textarea_create(parent);
+    lv_textarea_set_one_line(phone_dialer_ta, true);
+    lv_obj_set_size(phone_dialer_ta, 224, 38);
+    lv_obj_align(phone_dialer_ta, LV_ALIGN_TOP_MID, 0, 34);
+    lv_obj_clear_flag(phone_dialer_ta, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_text_font(phone_dialer_ta, &Font_Mono_Bold_20, LV_PART_MAIN);
+    lv_obj_set_style_text_align(phone_dialer_ta, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(phone_dialer_ta, 5, LV_PART_MAIN);
+    lv_textarea_set_placeholder_text(phone_dialer_ta, "Number");
+
+    phone_dialer_status = lv_label_create(parent);
+    lv_obj_set_width(phone_dialer_status, lv_pct(96));
+    lv_obj_align(phone_dialer_status, LV_ALIGN_TOP_MID, 0, 78);
+    lv_obj_set_style_text_align(phone_dialer_status, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(phone_dialer_status, FONT_BOLD_SIZE_14, LV_PART_MAIN);
+
+    lv_obj_t *btnm = lv_btnmatrix_create(parent);
+    lv_btnmatrix_set_map(btnm, phone_keypad_map);
+    lv_obj_set_size(btnm, 224, 118);
+    lv_obj_align(btnm, LV_ALIGN_TOP_MID, 0, 96);
+    lv_obj_set_style_text_font(btnm, FONT_BOLD_SIZE_16, LV_PART_ITEMS);
+    lv_obj_set_style_border_width(btnm, 0, LV_PART_MAIN);
+    lv_obj_add_event_cb(btnm, phone_dialer_keypad_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    phone_dialer_call_btn = phone_action_button_create(parent, "Call", -58, 98, 115, true, phone_dialer_call_event_cb);
+    phone_dialer_del_btn = phone_action_button_create(parent, "Del", 58, 98, 115, false, phone_dialer_del_event_cb);
+    lv_obj_set_height(phone_dialer_call_btn, 34);
+    lv_obj_set_height(phone_dialer_del_btn, 34);
+
+    phone_dialer_at_btn = phone_action_button_create(parent, "AT", 87, -130, 46, false, phone_debug_open_event_cb);
+    lv_obj_set_size(phone_dialer_at_btn, 46, 28);
+    lv_obj_align(phone_dialer_at_btn, LV_ALIGN_TOP_RIGHT, -54, 3);
+
+    phone_dialer_test_btn = phone_action_button_create(parent, "Test", 87, -130, 46, false, phone_test_digits_event_cb);
+    lv_obj_set_size(phone_dialer_test_btn, 46, 28);
+    lv_obj_align(phone_dialer_test_btn, LV_ALIGN_TOP_RIGHT, -6, 3);
+
+    lv_obj_t *recent_title = lv_label_create(parent);
+    lv_obj_align(recent_title, LV_ALIGN_TOP_LEFT, 8, 278);
+    lv_obj_set_style_text_font(recent_title, FONT_BOLD_SIZE_14, LV_PART_MAIN);
+    lv_label_set_text(recent_title, "Recent Calls");
+
+    for (int i = 0; i < UI_PHONE_HISTORY_MAX; ++i) {
+        phone_dialer_recent[i] = lv_label_create(parent);
+        lv_obj_set_width(phone_dialer_recent[i], lv_pct(95));
+        lv_obj_align(phone_dialer_recent[i], LV_ALIGN_TOP_LEFT, 8, 294 + (i * 16));
+        lv_obj_set_style_text_font(phone_dialer_recent[i], FONT_BOLD_SIZE_14, LV_PART_MAIN);
+        lv_label_set_long_mode(phone_dialer_recent[i], LV_LABEL_LONG_CLIP);
+        lv_label_set_text(phone_dialer_recent[i], "-");
+    }
+
+    scr_back_btn_create(parent, "Phone", phone_back_btn_event_cb);
+}
+
+static void entry8(void)
+{
+    phone_active_screen = SCREEN8_ID;
+    ui_phone_snapshot_t snapshot = {};
+    if (ui_phone_get_snapshot(&snapshot)) {
+        phone_refresh_all(&snapshot);
+    }
     ui_disp_full_refr();
 }
-static void destroy8(void) { }
+
+static void exit8(void)
+{
+    if (phone_active_screen == SCREEN8_ID) {
+        phone_active_screen = -1;
+    }
+    ui_disp_full_refr();
+}
+
+static void destroy8(void)
+{
+    phone_dialer_ta = NULL;
+    phone_dialer_status = NULL;
+    phone_dialer_call_btn = NULL;
+    phone_dialer_del_btn = NULL;
+    phone_dialer_at_btn = NULL;
+    phone_dialer_test_btn = NULL;
+    for (int i = 0; i < UI_PHONE_HISTORY_MAX; ++i) {
+        phone_dialer_recent[i] = NULL;
+    }
+}
 
 static scr_lifecycle_t screen8 = {
     .create = create8,
@@ -2304,83 +2592,57 @@ static scr_lifecycle_t screen8 = {
     .exit  = exit8,
     .destroy = destroy8,
 };
-#endif
-// --------------------- screen 8.1 --------------------- Call test
-#if 1
-static void event_handler(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
-    lv_obj_t * ta =  (lv_obj_t *)lv_event_get_user_data(e);
 
-    if(code == LV_EVENT_VALUE_CHANGED) {
-        uint32_t id = lv_btnmatrix_get_selected_btn(obj);
-        const char * txt = lv_btnmatrix_get_btn_text(obj, id);
-        int len = strlen(txt);
- 
-        if(!strcmp(txt, LV_SYMBOL_CALL)) {
-            ui_a7682_call(lv_textarea_get_text(ta));
-        } else if(!strcmp(txt, "Hang up"))
-        {
-            ui_a7682_hang_up();
-        } else if(!strcmp(txt, LV_SYMBOL_BACKSPACE))
-        {
-            lv_textarea_del_char(ta);
-        }else{
-            lv_textarea_add_text(ta, txt);
-        }
+static void create8_1(lv_obj_t *parent)
+{
+    phone_call_status = lv_label_create(parent);
+    lv_obj_set_width(phone_call_status, lv_pct(100));
+    lv_obj_align(phone_call_status, LV_ALIGN_TOP_MID, 0, 36);
+    lv_obj_set_style_text_align(phone_call_status, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(phone_call_status, FONT_BOLD_SIZE_17, LV_PART_MAIN);
+    lv_label_set_text(phone_call_status, "Calling");
+
+    phone_call_number = lv_label_create(parent);
+    lv_obj_set_width(phone_call_number, lv_pct(100));
+    lv_obj_align(phone_call_number, LV_ALIGN_TOP_MID, 0, 92);
+    lv_obj_set_style_text_align(phone_call_number, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(phone_call_number, &Font_Mono_Bold_20, LV_PART_MAIN);
+    lv_label_set_text(phone_call_number, "Unknown");
+
+    phone_call_timer = lv_label_create(parent);
+    lv_obj_set_width(phone_call_timer, lv_pct(100));
+    lv_obj_align(phone_call_timer, LV_ALIGN_TOP_MID, 0, 146);
+    lv_obj_set_style_text_align(phone_call_timer, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(phone_call_timer, FONT_BOLD_SIZE_18, LV_PART_MAIN);
+    lv_label_set_text(phone_call_timer, "00:00");
+
+    phone_action_button_create(parent, "End Call", 0, 122, 148, true, phone_end_call_event_cb);
+}
+
+static void entry8_1(void)
+{
+    phone_active_screen = SCREEN8_1_ID;
+    ui_phone_snapshot_t snapshot = {};
+    if (ui_phone_get_snapshot(&snapshot)) {
+        phone_refresh_all(&snapshot);
     }
-}
-
-static const char * btnm_map[] = {  "1", "2", "3", "\n",
-                                    "4", "5", "6", "\n",
-                                    "7", "8", "9", "\n",
-                                    "*", "0", "#", "\n",
-                                    LV_SYMBOL_CALL, "Hang up", LV_SYMBOL_BACKSPACE,""
-                                 };
-
-
-static void scr8_1_btn_event_cb(lv_event_t * e)
-{
-    if(e->code == LV_EVENT_CLICKED){
-        scr_mgr_pop(false);
-    }
-}
-
-static void create8_1(lv_obj_t *parent) 
-{
-    lv_obj_t * ta = lv_textarea_create(parent);
-    lv_textarea_set_one_line(ta, true);
-    lv_obj_set_width(ta, lv_pct(98));
-    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, lv_pct(20));
-    lv_obj_set_style_text_font(ta, &Font_Mono_Bold_20, LV_PART_MAIN);
-    // lv_obj_add_state(ta, LV_STATE_FOCUSED); /*To be sure the cursor is visible*/
-    lv_obj_clear_flag(ta, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_text_letter_space(ta, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_line_space(ta, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_t * btnm1 = lv_btnmatrix_create(parent);
-    lv_btnmatrix_set_map(btnm1, btnm_map);
-    lv_obj_set_size(btnm1, lv_pct(100)-2, lv_pct(60));
-    lv_obj_set_style_border_width(btnm1, 0, 0);
-    // lv_btnmatrix_set_btn_width(btnm1, 10, 2);        /*Make "Action1" twice as wide as "Action2"*/
-    // lv_btnmatrix_set_btn_ctrl(btnm1, 10, LV_BTNMATRIX_CTRL_CHECKABLE);
-    // lv_btnmatrix_set_btn_ctrl(btnm1, 11, LV_BTNMATRIX_CTRL_CHECKED);
-    lv_obj_align(btnm1, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_add_event_cb(btnm1, event_handler, LV_EVENT_VALUE_CHANGED, ta);
-    
-    lv_obj_t *back8_1_label = scr_back_btn_create(parent, ("Call"), scr8_1_btn_event_cb);
-}
-static void entry8_1(void) 
-{
-    ui_a7682_loop_resume();
     ui_disp_full_refr();
 }
-static void exit8_1(void) {
-    ui_a7682_loop_suspend();
+
+static void exit8_1(void)
+{
+    if (phone_active_screen == SCREEN8_1_ID) {
+        phone_active_screen = -1;
+    }
     ui_disp_full_refr();
 }
-static void destroy8_1(void) { }
+
+static void destroy8_1(void)
+{
+    phone_call_status = NULL;
+    phone_call_number = NULL;
+    phone_call_timer = NULL;
+}
 
 static scr_lifecycle_t screen8_1 = {
     .create = create8_1,
@@ -2388,43 +2650,101 @@ static scr_lifecycle_t screen8_1 = {
     .exit  = exit8_1,
     .destroy = destroy8_1,
 };
-#endif
-// --------------------- screen 8.2 --------------------- AT test
-#if 1
-static void scr8_2_btn_event_cb(lv_event_t * e)
+
+static void create8_2(lv_obj_t *parent)
 {
-    if(e->code == LV_EVENT_CLICKED){
-        scr_mgr_pop(false);
-    }
+    phone_incoming_title = lv_label_create(parent);
+    lv_obj_set_width(phone_incoming_title, lv_pct(100));
+    lv_obj_align(phone_incoming_title, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_set_style_text_align(phone_incoming_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(phone_incoming_title, FONT_BOLD_SIZE_17, LV_PART_MAIN);
+    lv_label_set_text(phone_incoming_title, "Incoming Call");
+
+    phone_incoming_number = lv_label_create(parent);
+    lv_obj_set_width(phone_incoming_number, lv_pct(100));
+    lv_obj_align(phone_incoming_number, LV_ALIGN_TOP_MID, 0, 116);
+    lv_obj_set_style_text_align(phone_incoming_number, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(phone_incoming_number, &Font_Mono_Bold_20, LV_PART_MAIN);
+    lv_label_set_text(phone_incoming_number, "Unknown");
+
+    phone_action_button_create(parent, "Reject", -58, 122, 96, false, phone_reject_event_cb);
+    phone_action_button_create(parent, "Answer", 58, 122, 96, true, phone_answer_event_cb);
 }
 
-static void create8_2(lv_obj_t *parent) 
+static void entry8_2(void)
 {
-    lv_obj_t *lab = lv_label_create(parent);
-    lv_obj_set_width(lab, lv_pct(95));
-    lv_obj_set_style_text_font(lab, FONT_BOLD_SIZE_17, LV_PART_MAIN);
-    lv_label_set_text(lab, "Open the serial port, set the baud rate to 115200, "
-                            "and send the AT command of A7682E to test the function.");
-    lv_obj_center(lab);
-    
-    lv_obj_t *back8_2_label = scr_back_btn_create(parent, ("AT test"), scr8_2_btn_event_cb);
-}
-static void entry8_2(void) 
-{
-    ui_a7682_loop_resume();
+    phone_active_screen = SCREEN8_2_ID;
+    ui_phone_snapshot_t snapshot = {};
+    if (ui_phone_get_snapshot(&snapshot)) {
+        phone_refresh_all(&snapshot);
+    }
     ui_disp_full_refr();
 }
-static void exit8_2(void) {
-    ui_a7682_loop_suspend();
+
+static void exit8_2(void)
+{
+    if (phone_active_screen == SCREEN8_2_ID) {
+        phone_active_screen = -1;
+    }
     ui_disp_full_refr();
 }
-static void destroy8_2(void) { }
+
+static void destroy8_2(void)
+{
+    phone_incoming_title = NULL;
+    phone_incoming_number = NULL;
+}
 
 static scr_lifecycle_t screen8_2 = {
     .create = create8_2,
     .entry = entry8_2,
     .exit  = exit8_2,
     .destroy = destroy8_2,
+};
+
+static void create8_3(lv_obj_t *parent)
+{
+    phone_debug_label = lv_label_create(parent);
+    lv_obj_set_width(phone_debug_label, lv_pct(94));
+    lv_obj_center(phone_debug_label);
+    lv_obj_set_style_text_font(phone_debug_label, FONT_BOLD_SIZE_15, LV_PART_MAIN);
+    lv_obj_set_style_text_align(phone_debug_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(phone_debug_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(phone_debug_label, "");
+
+    scr_back_btn_create(parent, "AT Debug", phone_back_btn_event_cb);
+}
+
+static void entry8_3(void)
+{
+    phone_active_screen = SCREEN8_3_ID;
+    ui_phone_set_debug_passthrough(true);
+    ui_phone_snapshot_t snapshot = {};
+    if (ui_phone_get_snapshot(&snapshot)) {
+        phone_refresh_all(&snapshot);
+    }
+    ui_disp_full_refr();
+}
+
+static void exit8_3(void)
+{
+    ui_phone_set_debug_passthrough(false);
+    if (phone_active_screen == SCREEN8_3_ID) {
+        phone_active_screen = -1;
+    }
+    ui_disp_full_refr();
+}
+
+static void destroy8_3(void)
+{
+    phone_debug_label = NULL;
+}
+
+static scr_lifecycle_t screen8_3 = {
+    .create = create8_3,
+    .entry = entry8_3,
+    .exit  = exit8_3,
+    .destroy = destroy8_3,
 };
 #endif
 //************************************[ screen 9 ]****************************************** Shutdown
@@ -3027,6 +3347,9 @@ void ui_deckpro_entry(void)
     low_battery_timer = lv_timer_create(low_battery_timer_cb, LOW_BATTERY_CHECK_PERIOD_MS, NULL);
     lv_timer_ready(low_battery_timer);
 
+    phone_state_timer = lv_timer_create(phone_state_timer_cb, 500, NULL);
+    lv_timer_ready(phone_state_timer);
+
     scr_mgr_init();
 
     scr_mgr_register(SCREEN0_ID,    &screen0);      // menu
@@ -3044,9 +3367,10 @@ void ui_deckpro_entry(void)
     scr_mgr_register(SCREEN6_1_ID,  &screen6_1);    //  - BQ25896
     scr_mgr_register(SCREEN6_2_ID,  &screen6_2);    //  - BQ27220
     scr_mgr_register(SCREEN7_ID,    &screen7);      // 
-    scr_mgr_register(SCREEN8_ID,    &screen8);      // A7682E
-    scr_mgr_register(SCREEN8_1_ID,  &screen8_1);    //  - Call test
-    scr_mgr_register(SCREEN8_2_ID,  &screen8_2);    //  - AT test
+    scr_mgr_register(SCREEN8_ID,    &screen8);      // Phone
+    scr_mgr_register(SCREEN8_1_ID,  &screen8_1);    //  - Calling / In Call
+    scr_mgr_register(SCREEN8_2_ID,  &screen8_2);    //  - Incoming Call
+    scr_mgr_register(SCREEN8_3_ID,  &screen8_3);    //  - AT Debug
     scr_mgr_register(SCREEN9_ID,    &screen9);      // Shutdown
     scr_mgr_register(SCREEN10_ID,   &screen10);     // Music
     scr_mgr_register(SCREEN11_ID,   &screen11);     // Sleep
