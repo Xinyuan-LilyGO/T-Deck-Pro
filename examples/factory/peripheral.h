@@ -41,11 +41,14 @@ void lora_param_set(void);
 // keypad
 #define KEYPAD_PRESS   1
 #define KEYPAD_RELEASE 0
+#define INPUT_TEXTBOX_LEN 128
+extern char input_textbox[INPUT_TEXTBOX_LEN];
 
 typedef void (*keypad_cb)(int state, char val);
 
 bool keypad_init(int address);
 int keypad_get_val(char *c);
+int keypad_get_state();
 void keypad_loop(void);
 void keypad_regetser_cb(keypad_cb cb);
 void keypad_set_flag(void);
