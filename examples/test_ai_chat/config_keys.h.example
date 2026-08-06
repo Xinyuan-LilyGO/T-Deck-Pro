@@ -1,0 +1,36 @@
+/**
+ * @file      config_keys.h
+ * @author    LilyGo
+ * @license   MIT
+ * @copyright Copyright (c) 2025  ShenZhen XinYuan Electronic Technology Co., Ltd
+ * @date      2025-04-01
+ * @brief     User-configurable compile-time settings for network-connected features.
+ *
+ * Copy this file to config_keys.h and fill in your values.
+ * config_keys.h is gitignored to protect your credentials.
+ */
+#pragma once
+
+// ---- WiFi Credentials ----
+// Primary WiFi network
+#define WIFI_SSID         "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD     "YOUR_WIFI_PASSWORD"
+
+// Optional: Secondary WiFi network (auto‑fills password when selected in UI)
+// #define WIFI_SSID2        "YOUR_SECOND_SSID"
+// #define WIFI_PASSWORD2    "YOUR_SECOND_PASSWORD"
+
+// ---- DeepSeek API (for text answers) ----
+// Get your key at: https://platform.deepseek.com/
+#define DEEPSEEK_API_KEY  "sk‑xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+// Optional model: deepseek‑chat or deepseek‑reasoner
+#define DEEPSEEK_MODEL    "deepseek‑chat"
+
+// ---- iFlytek RTASR API (for voice transcription) ----
+// Create an app at: https://console.xfyun.cn/app/myapp
+// Enable the RTASR/实时语音转写 service, then fill in AppID, APIKey,
+// and APISecret from the service page.
+#define XFYUN_APP_ID      "YOUR_XFYUN_APP_ID"
+#define XFYUN_API_KEY     "YOUR_XFYUN_API_KEY"
+#define XFYUN_API_SECRET  "YOUR_XFYUN_API_SECRET"
+
